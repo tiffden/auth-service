@@ -1,0 +1,12 @@
+# Virtual Environments
+.venv/
+
+# Python Artifacts
+__pycache__/
+*.pyc
+
+# Pytest
+.pytest_cache/
+
+# OS
+.DS_Store
