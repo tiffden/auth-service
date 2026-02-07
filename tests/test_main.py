@@ -23,6 +23,7 @@ def _get_token() -> str:
     assert "access_token" in payload
     return payload["access_token"]
 
+# curl -s http://127.0.0.1:8000/health
 def test_health_returns_ok() -> None:
     resp = client.get("/health")
     assert resp.status_code == 200
