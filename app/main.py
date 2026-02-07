@@ -60,7 +60,12 @@ TOKEN_TTL_MIN = 30
 # Keeping a default only so the demo runs without extra setup.
 TOKEN_SIGNING_SECRET = os.getenv("TOKEN_SIGNING_SECRET", "dev-only-secret-change-me")
 
-
+# pydantic.BaseModel defines the rules of data entering and leaving your FastAPI app—and enforces them automatically.
+# When you should use BaseModel?
+# 	•	Request bodies
+# 	•	Response models
+# 	•	Configuration schemas
+# 	•	Structured messages (events, commands)
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
