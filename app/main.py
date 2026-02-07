@@ -43,7 +43,7 @@ from pydantic import BaseModel
 # /users (unauthorized): curl -i http://127.0.0.1:8000/users (should return 401)
 # ------------------------------------
 
-app = FastAPI(title="Week1 Minimal FastAPI")
+app = FastAPI(title="auth-services Minimal FastAPI")
 
 # ---- Fake "database" / identity store ----
 FAKE_USERS = [
@@ -80,7 +80,6 @@ class UserOut(BaseModel):
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
-
 
 @app.post("/auth/token", response_model=Token)
 def issue_token(form: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Token:
