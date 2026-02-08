@@ -6,31 +6,57 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "auth-services"
 version = "0.1.0"
-requires-python = ">3.12"
+description = "Authentication-Authorization-Auditing Docker Service"
+readme = "README.md"
+requires-python = ">=3.12"
+
+authors = [
+  { name = "tiffden" }
+]
+
+# fastapi usually pulls in: "uvicorn[standard]",
 dependencies = [
-    "fastapi[standard]",
-    "httpx",
-    "python-multipart",
-    "uvicorn[standard]",
+  "fastapi[standard]",
+  "httpx",
+  "python-multipart",
 ]
 
 [project.optional-dependencies]
 # Tooling only: not included in production runtime images
 dev = [
-    "ruff",
-    "pytest",
+  "ruff",
+  "pytest",
+  "pytest-cov",
 ]
 
-[tool.setuptools.packages.find]
-# Explicit package list to avoid setuptools guessing in flat layout
-where = ["."]
-include = ["app", "api", "core", "services"]
-exclude = ["tests", "docker"]
+# =========================
+# Tooling (Layer 2)
+# =========================
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+ignore = []
+# Strict:  select = ["E", "F", "I", "B", "UP"]
+# Lenient: select = ["E", "F", "I"]
+select = ["E", "F", "I", "B", "UP"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = ["--import-mode=prepend"]
+addopts = "-q"
+# addopts = ["--import-mode=prepend"]
 
-[tool.ruff]
-line-length = 88
+# =========================
+# Common package structure: src/
+# =========================
+# package-dir = {"" = "src"}
+# where = ["src"]
 
+# =========================
+# OR Explicit package list to avoid setuptools guessing in flat layout
+# =========================
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*", "api*", "core*", "services*"]
+exclude = ["tests", "docker"]
