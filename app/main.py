@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
 import hashlib
 import hmac
 import os
 import secrets
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 # ------------------------------------
 # •	/health is public
-# •	/auth/token issues a bearer token using the standard OAuth2 password flow (form fields)
+# •	/auth/token issues a bearer token using the std OAuth2 password flow (form fields)
 # •	/users requires Authorization: Bearer <token>
 #
 # OpenAPI docs auto-generate from the type hints and FastAPI routing
@@ -39,7 +39,7 @@ from pydantic import BaseModel
 #               -H "Content-Type: application/x-www-form-urlencoded" \
 #               -d "username=tee&password=password"
 # /users (authorized):   TOKEN="paste_token_here"
-#                        curl -s http://127.0.0.1:8000/users -H "Authorization: Bearer $TOKEN"
+#                  curl -s http://127.0.0.1:8000/users -H "Authorization: Bearer $TOKEN"
 # /users (unauthorized): curl -i http://127.0.0.1:8000/users (should return 401)
 # ------------------------------------
 
@@ -54,13 +54,14 @@ FAKE_USERS = [
 # ---- Auth primitives (minimal demo token, improved for clarity) ----
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
-# A toy token system. In real life you'd use JWT (pyjwt/python-jose) + proper password hashing.
+# A toy token system. 
+# In real life you'd use JWT (pyjwt/python-jose) + proper password hashing.
 TOKEN_TTL_MIN = 30
 # In production this should be a long, random secret stored in env/secret manager.
 # Keeping a default only so the demo runs without extra setup.
 TOKEN_SIGNING_SECRET = os.getenv("TOKEN_SIGNING_SECRET", "dev-only-secret-change-me")
 
-# pydantic.BaseModel defines the rules of data entering and leaving your FastAPI app—and enforces them automatically.
+# pydantic.BaseModel defines rules of data entering/leaving FastAPI —auto enforces them
 # When you should use BaseModel?
 # 	•	Request bodies
 # 	•	Response models
