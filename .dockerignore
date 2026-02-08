@@ -1,29 +1,85 @@
-# Virtual Environments
-.venv/
+# =========================
+# VCS
+# =========================
+.git
+.gitignore
+.gitattributes
 
-# Package Output
-*.log
-
-# Python Artifacts
+# =========================
+# Python runtime artifacts
+# =========================
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyd
 *.pyo
-
-# Tools
 .pytest_cache/
-.ruff_cache/
 .mypy_cache/
-.git/
-.gitignore
-
-# Packaging artifacts
-*.egg-info/
-
-# Build
+.pyright/
+.ruff_cache/
 .coverage
-dist/
-build/
+coverage.xml
+htmlcov/
+.hypothesis/
 
-# OS
+# =========================
+# Virtual envs
+# =========================
+.venv/
+venv/
+ENV/
+env/
+
+# =========================
+# Build / packaging outputs
+# =========================
+build/
+dist/
+*.egg-info/
+*.whl
+.eggs/
+
+# =========================
+# Secrets / env
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Editor / IDE
+# =========================
+.vscode/
+.idea/
+*.iml
+
+# =========================
+# OS / filesystem noise
+# =========================
 .DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# =========================
+# Logs & temp
+# =========================
+*.log
+*.tmp
+*.swp
+*~
+
+# =========================
+# Docker compose local overrides (optional)
+# =========================
+docker-compose.override.yml
+
+# =========================
+# Large / irrelevant directories (optional)
+# =========================
+# If you have docs or assets not needed for the build, ignore them:
+# docs/
+# notebooks/
+# data/
