@@ -1,12 +1,29 @@
+# Virtual Environments
 .venv/
+
+# Package Output
+*.log
+
+# Python Artifacts
 __pycache__/
 *.pyc
+*.pyd
+*.pyo
+
+# Tools
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.git/
+.gitignore
+
+# Packaging artifacts
+*.egg-info/
+
+# Build
 .coverage
 dist/
 build/
-*.egg-info/
-.git/
+
+# OS
 .DS_Store
