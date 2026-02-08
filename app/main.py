@@ -43,7 +43,7 @@ from pydantic import BaseModel
 # /users (unauthorized): curl -i http://127.0.0.1:8000/users (should return 401)
 # ------------------------------------
 
-app = FastAPI(title="auth-services Minimal FastAPI")
+app = FastAPI(title="auth-service Minimal FastAPI")
 
 # ---- Fake "database" / identity store ----
 FAKE_USERS = [
