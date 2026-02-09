@@ -1,60 +1,103 @@
 # auth-service
 
-A minimal FastAPI-based authentication service, evolved incrementally
-to demonstrate modern Python backend practices.
+A minimal FastAPI authentication service with layered structure:
+- API routers in `app/api/`
+- business logic in `app/services/`
+- app wiring in `app/main.py`
 
-## Container size (multi-stage)
-Built on: 2026-02-08
+## Local Development
 
-Multi-Stage:
-	•	Stage 1: build wheels (or install deps in a venv you copy)
-	•	Stage 2: runtime only (no compilers, no build deps)
-    Goal:  Image size < 300MB
-
-Commands:
+### 1) Create and activate virtualenv
 ```bash
-docker build -t auth-service:week2-day3 .
-docker image ls auth-service:week2-day3
+python3 -m venv .venv
+source .venv/bin/activate
+```
 
-docker image ls auth-service:week2-day3 --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
-    REPOSITORY      TAG          SIZE
-    auth-service   week2-day3   327MB
-	
-    Image Bigger than expected?
-        •	python -m pip index versions fastapi 2>/dev/null | head -n 5 for 7s
-        •	docker image ls --format "table {{.Repository}}\\t{{.Tag}}\\t{{.Size}}"
-        •	docker image ls --format "table {{.Repository}}\\t{{.Tag}}\\t{{.Size}}"
-        •	docker history --no-trunc auth-service:week2-day3
-        •	docker history auth-service:week2-day3 --format "{{.Size}}\\t{{.CreatedBy}}"
-    Layer history confirms most of the size is base Python + installed dependencies, not the app code.
-        •	docker run --rm auth-service:week2-day3 sh -lc 'du -sh /usr/local/lib/python3.12/site-packages/* 2>/dev/null | sort -hr | head -n 20' for 6s
-        •	docker run --rm auth-service:week2-day3 sh -lc "python -m pip show fastapi fastapi-cli uvicorn | sed -n '1,200p'"
-        •	docker run --rm auth-service:week2-day3 sh -lc "python - <<'PY' from importlib.metadata import metadata m=metadata('fastapi')
+### 2) Install dependencies
+```bash
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+```
 
-    Changed pyproject.toml dependencies from FastApi[standard] to fastapi, uvicorn, httpx - REDUCED from 327MB to 233MB:
-        REPOSITORY      TAG          SIZE
-        auth-service   week2-day3   233MB
-        
-    Why fastapi[standard] is heavy - fastapi[standard] is a convenience meta-extra. It pulls in a broad set of production and developer-adjacent dependencies, including:
-        •	uvicorn[standard]
-        •	uvloop (C extension)
-        •	httptools (C extension)
-        •	watchfiles
-        •	python-multipart
-        •	email-validator
-        •	orjson (C extension)
-        •	websockets
-        •	python-dotenv
-        •	other transitive dependencies
-
-## Environment separation (dev/test/prod)
-
-This auth-service is configured via environment variables (no secrets baked into images).
-
-### Config variables
-- `APP_ENV`: `dev` | `test` | `prod` (default: `dev`)
-- `LOG_LEVEL`: `debug` | `info` | `warning` | `error` (default: `info`)
-
-A template is provided in `.env.example`:
+### 3) Create local env file
 ```bash
 cp .env.example .env
+```
+
+### 4) Run the app
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### 5) Quick checks
+```bash
+curl -s http://127.0.0.1:8000/health
+```
+
+## CI Command (Local)
+
+Run the same checks used by GitHub Actions:
+```bash
+make ci
+```
+
+Current `make ci` runs:
+1. `python -m ruff check .`
+2. `python -m ruff format --check .`
+3. `python -m pytest -q`
+
+## Docker Build and Run
+
+### Build image
+```bash
+docker build -f docker/Dockerfile -t auth-service:dev .
+```
+
+### Run container
+```bash
+docker run --rm -p 8000:8000 --env-file .env auth-service:dev
+```
+
+### Run with Docker Compose (recommended for local dev)
+```bash
+docker compose -f docker/docker-compose.yml up --build
+```
+
+## GitHub Actions CI
+
+Workflow file: `.github/workflows/ci.yml`
+
+Triggers:
+- `push`
+- `pull_request`
+
+Job steps:
+1. Checkout repository
+2. Setup Python 3.12
+3. Restore pip cache (based on `pyproject.toml`)
+4. Install project + dev dependencies
+5. Run lint (`ruff check`)
+6. Run format check (`ruff format --check`)
+7. Run tests (`pytest -q`)
+
+## Image Size and Measurement
+
+Latest measured runtime image (multi-stage Dockerfile):
+- `auth-service:week2-day3` -> `233MB`
+
+How measured:
+```bash
+docker build -f docker/Dockerfile -t auth-service:week2-day3 .
+docker image ls auth-service:week2-day3 --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
+```
+
+Useful follow-up inspection commands:
+```bash
+docker history auth-service:week2-day3 --format "{{.Size}}\t{{.CreatedBy}}"
+docker run --rm auth-service:week2-day3 sh -lc 'du -sh /usr/local/lib/python3.12/site-packages/* 2>/dev/null | sort -hr | head -n 20'
+```
+
+## Environment Variables
+
+- `APP_ENV`: `dev` | `test` | `prod` (default: `dev`)
+- `LOG_LEVEL`: `debug` | `info` | `warning` | `error` (default: `info`)
