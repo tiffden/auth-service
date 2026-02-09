@@ -14,9 +14,10 @@ authors = [
   { name = "tiffden" }
 ]
 
-# fastapi usually pulls in: "uvicorn[standard]",
+# fastapi[standard] is bigger than just fastapi, uvicorn, httpx
 dependencies = [
-  "fastapi[standard]",
+  "fastapi",
+  "uvicorn",
   "httpx",
   "python-multipart",
 ]
