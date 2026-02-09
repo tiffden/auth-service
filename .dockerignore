@@ -2,6 +2,7 @@
 # VCS
 # =========================
 .git
+.github/
 .gitignore
 .gitattributes
 

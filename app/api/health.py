@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+# Endpoint Logic - defines GET /health
+
 router = APIRouter(tags=["health"])
 
 
