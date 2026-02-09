@@ -1,7 +1,11 @@
-# The volumes mount makes local edits immediately visible in-container
-# command: overrides your Dockerfile’s default command only for compose (dev)
+name: auth-service
+
+# The volumes mount makes local edits immediately visible in-container.
+# command overrides your Dockerfile default only for compose (dev).
 services:
   api:
+    image: auth-service:dev
+    container_name: auth-service-api-dev
     build:
       context: ..
       dockerfile: docker/Dockerfile
