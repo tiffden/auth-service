@@ -3,7 +3,10 @@
 lint:
 	python -m ruff check .
 
+format:
+	python -m ruff format --check .
+
 test:
 	python -m pytest -q
 
-ci: lint test
+ci: lint format test
