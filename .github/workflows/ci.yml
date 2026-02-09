@@ -28,5 +28,8 @@ jobs:
       - name: Lint (ruff)
         run: python -m ruff check .
 
+      - name: Format (ruff)
+        run: python -m ruff format --check .
+
       - name: Test (pytest)
         run: python -m pytest -q
