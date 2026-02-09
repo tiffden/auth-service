@@ -46,3 +46,15 @@ docker image ls auth-services:week2-day3 --format "table {{.Repository}}\t{{.Tag
         •	websockets
         •	python-dotenv
         •	other transitive dependencies
+
+## Environment separation (dev/test/prod)
+
+This auth-service is configured via environment variables (no secrets baked into images).
+
+### Config variables
+- `APP_ENV`: `dev` | `test` | `prod` (default: `dev`)
+- `LOG_LEVEL`: `debug` | `info` | `warning` | `error` (default: `info`)
+
+A template is provided in `.env.example`:
+```bash
+cp .env.example .env

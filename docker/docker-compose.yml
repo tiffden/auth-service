@@ -1,0 +1,18 @@
+# The volumes mount makes local edits immediately visible in-container
+# command: overrides your Dockerfile’s default command only for compose (dev)
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    env_file:
+      - ../.env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../:/app
+    command: >
+      uvicorn app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload

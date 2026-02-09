@@ -11,6 +11,8 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
+from app.core.config import SETTINGS
+
 # ------------------------------------
 # •	/health is public
 # •	/auth/token issues a bearer token using the std OAuth2 password flow (form fields)
@@ -43,7 +45,11 @@ from pydantic import BaseModel
 # /users (unauthorized): curl -i http://127.0.0.1:8000/users (should return 401)
 # ------------------------------------
 
-app = FastAPI(title="auth-service Minimal FastAPI")
+app = FastAPI(
+    title="auth-services",
+    docs_url="/docs" if not SETTINGS.is_prod else None,
+    redoc_url="/redoc" if not SETTINGS.is_prod else None,
+)
 
 # ---- Fake "database" / identity store ----
 FAKE_USERS = [
