@@ -16,20 +16,30 @@ authors = [
 
 # fastapi[standard] is bigger than just fastapi, uvicorn, httpx
 dependencies = [
-  "fastapi",
-  "uvicorn",
-  "httpx",
-  "python-multipart",
+    "fastapi[standard]",
+    "httpx",
+    "python-multipart",
+    "uvicorn[standard]",
 ]
 
 [project.optional-dependencies]
 # Tooling only: not included in production runtime images
 dev = [
-  "ruff",
-  "pytest",
-  "pytest-cov",
-  "pre-commit",
+    "ruff",
+    "pytest",
+    "pytest-cov",
+    "pre-commit",
 ]
+
+[tool.setuptools.packages.find]
+# Explicit package list to avoid setuptools guessing in flat layout
+where = ["."]
+include = ["app", "api", "core", "services"]
+exclude = ["tests", "docker"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--import-mode=prepend"]
 
 # =========================
 # Tooling (Layer 2)
