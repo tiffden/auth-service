@@ -1,12 +1,103 @@
-# Virtual Environments
-.venv/
-
-# Python Artifacts
+# =========================
+# Python bytecode / caches
+# =========================
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 
-# Pytest
+# Type checker / linter caches
+.mypy_cache/
+.pytype/
+.pyre/
+.pyright/
+.ruff_cache/
+
+# Test / coverage artifacts
 .pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+nosetests.xml
+pytestdebug.log
+.hypothesis/
 
-# OS
+# =========================
+# Virtual environments
+# =========================
+.venv/
+venv/
+ENV/
+env/
+
+# Jupyter / IPython
+.ipynb_checkpoints/
+.profile_default/
+ipython_config.py
+
+# =========================
+# Packaging / build outputs
+# =========================
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+*.whl
+*.egg
+MANIFEST
+
+# If you use Poetry/PDM/uv, keep lockfiles committed (do NOT ignore):
+# poetry.lock
+# pdm.lock
+# uv.lock
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# Environment / secrets
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Editors / IDEs
+# =========================
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+.idea/
+*.iml
+
+# =========================
+# OS / filesystem noise
+# =========================
 .DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# =========================
+# Docker (optional)
+# =========================
+# If you use docker compose locally, you usually commit compose files.
+# But ignore local override files:
+docker-compose.override.yml
+
+# =========================
+# Misc
+# =========================
+*.bak
+*.tmp
+*.swp
+*~

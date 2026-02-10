@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: |
+            pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Lint (ruff)
+        run: python -m ruff check .
+
+      - name: Format (ruff)
+        run: python -m ruff format --check .
+
+      - name: Test (pytest)
+        run: python -m pytest -q
+
+      - name: Build image
+        run: docker build -f docker/Dockerfile -t auth-service:ci .
+
+      - name: Verify container is non-root
+        run: |
+          uid="$(docker run --rm auth-service:ci id -u)"
+          if [ "$uid" -eq 0 ]; then
+            echo "Container is running as root (uid=0)."
+            exit 1
+          fi
+          echo "Container uid=$uid (non-root)."

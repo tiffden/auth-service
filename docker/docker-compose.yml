@@ -1,0 +1,40 @@
+name: auth-service
+
+# The volumes mount makes local edits immediately visible in-container.
+# command overrides your Dockerfile default only for compose (dev).
+services:
+  api:
+    image: auth-service:dev
+    pull_policy: never
+    container_name: auth-service-api-dev
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: runtime
+    env_file:
+      - ../.env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../:/app
+    command: >
+      uvicorn app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+
+  test:
+    image: auth-service:test
+    pull_policy: never
+    container_name: auth-service-test-dev
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: devtest
+    env_file:
+      - ../.env
+    environment:
+      APP_ENV: test
+    volumes:
+      - ../:/app
+    command: python -m pytest -q
