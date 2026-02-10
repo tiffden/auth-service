@@ -1,47 +1,56 @@
 # auth-service
 
+![CI](https://github.com/<owner>/<repo>/actions/workflows/ci.yml/badge.svg?branch=main)
+
 A minimal FastAPI authentication service with layered structure:
-- API routers in `app/api/`
-- business logic in `app/services/`
-- app wiring in `app/main.py`
+    API routers in `app/api/`
+    business logic in `app/services/`
+    app wiring in `app/main.py`
+    logging in `app/core/`
 
 ## Local Development
 
 ### 1) Create and activate virtualenv
-```bash
+>
+>bash
 python3 -m venv .venv
 source .venv/bin/activate
-```
+>
 
 ### 2) Install dependencies
-```bash
+>
+>bash
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
-```
+>
 
 ### 3) Create local env file
-```bash
+>
+>bash
 cp .env.example .env
-```
+>
 
 ### 4) Run the app
-```bash
+>
+>bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
+>
 
 ### 5) Quick checks
-```bash
-curl -s http://127.0.0.1:8000/health
-```
+>
+>bash
+curl -s <http://127.0.0.1:8000/health>
+>
 
 ## CI Command (Local)
 
 Run the same checks used by GitHub Actions:
-```bash
+>bash
 make ci
-```
+>
 
 Current `make ci` runs:
+
 1. `python -m ruff check .`
 2. `python -m ruff format --check .`
 3. `python -m pytest -q`
@@ -49,29 +58,33 @@ Current `make ci` runs:
 ## Docker Build and Run
 
 ### Build image
-```bash
+>
+>bash
 docker build -f docker/Dockerfile -t auth-service:dev .
-```
+>
 
 ### Run container
-```bash
+>
+>bash
 docker run --rm -p 8000:8000 --env-file .env auth-service:dev
-```
+>
 
 ### Run with Docker Compose (recommended for local dev)
-```bash
+>
+>bash
 docker compose -f docker/docker-compose.yml up --build
-```
+>
 
 ## GitHub Actions CI
 
 Workflow file: `.github/workflows/ci.yml`
 
 Triggers:
-- `push`
-- `pull_request`
+`push`
+`pull_request`
 
 Job steps:
+
 1. Checkout repository
 2. Setup Python 3.12
 3. Restore pip cache (based on `pyproject.toml`)
@@ -83,21 +96,22 @@ Job steps:
 ## Image Size and Measurement
 
 Latest measured runtime image (multi-stage Dockerfile):
+
 - `auth-service:week2-day3` -> `233MB`
 
 How measured:
-```bash
+>bash
 docker build -f docker/Dockerfile -t auth-service:week2-day3 .
 docker image ls auth-service:week2-day3 --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
-```
+>
 
 Useful follow-up inspection commands:
-```bash
+>bash
 docker history auth-service:week2-day3 --format "{{.Size}}\t{{.CreatedBy}}"
 docker run --rm auth-service:week2-day3 sh -lc 'du -sh /usr/local/lib/python3.12/site-packages/* 2>/dev/null | sort -hr | head -n 20'
-```
+>
 
 ## Environment Variables
 
-- `APP_ENV`: `dev` | `test` | `prod` (default: `dev`)
-- `LOG_LEVEL`: `debug` | `info` | `warning` | `error` (default: `info`)
+`APP_ENV`: `dev` | `test` | `prod` (default: `dev`)
+`LOG_LEVEL`: `debug` | `info` | `warning` | `error` (default: `info`)
