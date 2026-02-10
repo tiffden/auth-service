@@ -31,16 +31,6 @@ dev = [
     "pre-commit",
 ]
 
-[tool.setuptools.packages.find]
-# Explicit package list to avoid setuptools guessing in flat layout
-where = ["."]
-include = ["app", "api", "core", "services"]
-exclude = ["tests", "docker"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = ["--import-mode=prepend"]
-
 # =========================
 # Tooling (Layer 2)
 # =========================
