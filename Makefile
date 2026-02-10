@@ -1,4 +1,8 @@
-.PHONY: lint test ci
+.PHONY: setup lint format test ci
+
+setup:
+	python -m pip install -e ".[dev]"
+	pre-commit install
 
 lint:
 	python -m ruff check .
@@ -10,3 +14,4 @@ test:
 	python -m pytest -q
 
 ci: lint format test
+

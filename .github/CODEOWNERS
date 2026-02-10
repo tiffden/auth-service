@@ -1,0 +1,11 @@
+# Default -- require review from team lead
+*                       @tiffden
+
+# Auth/security changes need explicit security review
+app/api/auth.py         @tiffden @security-reviewer
+app/core/config.py      @tiffden @security-reviewer
+
+# CI/CD changes
+.github/                @tiffden
+docker/                 @tiffden
+Makefile                @tiffden
