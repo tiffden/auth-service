@@ -1,6 +1,6 @@
 # auth-service
 
-![CI](https://github.com/<owner>/<repo>/actions/workflows/ci.yml/badge.svg?branch=main)
+![CI](https://github.com/tiffden/auth-service/actions/workflows/ci.yml/badge.svg?branch=main)
 
 A minimal FastAPI authentication service with layered structure:
     API routers in `app/api/`
@@ -49,7 +49,7 @@ Run the same checks used by GitHub Actions:
 make ci
 >
 
-Current `make ci` runs:
+which is:
 
 1. `python -m ruff check .`
 2. `python -m ruff format --check .`
