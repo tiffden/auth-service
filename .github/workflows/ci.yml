@@ -33,3 +33,15 @@ jobs:
 
       - name: Test (pytest)
         run: python -m pytest -q
+
+      - name: Build image
+        run: docker build -f docker/Dockerfile -t auth-service:ci .
+
+      - name: Verify container is non-root
+        run: |
+          uid="$(docker run --rm auth-service:ci id -u)"
+          if [ "$uid" -eq 0 ]; then
+            echo "Container is running as root (uid=0)."
+            exit 1
+          fi
+          echo "Container uid=$uid (non-root)."

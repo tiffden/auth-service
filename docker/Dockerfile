@@ -65,11 +65,17 @@ FROM python:3.12-slim AS runtime
 
 WORKDIR /app
 
+# Create a dedicated non-root runtime user.
+RUN groupadd --system appuser \
+  && useradd --system --gid appuser --create-home --home-dir /home/appuser appuser
+
 # Required runtime env
+# - APP_ENV=prod: explicit runtime mode so containers never default to dev behavior
 # - PYTHONDONTWRITEBYTECODE=1: don’t generate .pyc files (less disk churn in containers)
 # - PYTHONUNBUFFERED=1: stdout/stderr unbuffered (logs appear immediately)
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    APP_ENV=prod
 
 # (Optional but common) tighten pip behavior in containers
 # Pip behavior hardening:
@@ -98,10 +104,13 @@ RUN --mount=type=bind,from=builder,source=/wheels,target=/wheels,readonly \
     python -m pip install --no-cache-dir /wheels/*
 
 # Now copy your app code (after deps for better caching).
-COPY app ./app
+COPY --chown=appuser:appuser app ./app
 
 # If your FastAPI app is app.main:app, expose 8000 (basically names 8000:8000)
 EXPOSE 8000
+
+# Drop root privileges for runtime.
+USER appuser
 
 # Production-ish default command.
 # - Bind to 0.0.0.0 so the container is reachable from outside.
