@@ -118,3 +118,20 @@ USER appuser
 #
 # Note: In local dev you might add `--reload`, but avoid that in production images.
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+############################
+# Stage 3 — dev/test (tooling)
+# Includes dev extras for local test workflows.
+############################
+FROM runtime AS devtest
+
+USER root
+
+# Install local project + dev tooling (pytest, ruff, pre-commit, etc.).
+COPY pyproject.toml ./
+RUN python -m pip install --no-cache-dir -e ".[dev]"
+
+USER appuser
+ENV APP_ENV=test
+
+CMD ["python", "-m", "pytest", "-q"]

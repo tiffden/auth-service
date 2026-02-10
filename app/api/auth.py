@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import os
 import secrets
 from datetime import UTC, datetime, timedelta
@@ -10,6 +11,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["auth"])
 
@@ -32,6 +35,7 @@ def issue_token(form: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Token:
         secrets.compare_digest(form.username, "tee")
         and secrets.compare_digest(form.password, "password")
     ):
+        logger.warning("Login failed for user=%s", form.username)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
@@ -48,6 +52,7 @@ def issue_token(form: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Token:
     ).hexdigest()
     token = f"{token_core}|sig:{sig}"
 
+    logger.info("Token issued for user=%s", form.username)
     return Token(access_token=token, expires_at=expires_at)
 
 
@@ -60,6 +65,7 @@ def require_user(token: Annotated[str, Depends(oauth2_scheme)]) -> str:
         exp_ts = int(exp_part.split(":", 1)[1])
         sig_part = parts[2] if len(parts) > 2 else None
     except Exception as e:
+        logger.warning("Malformed token rejected")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Malformed token",
@@ -67,6 +73,7 @@ def require_user(token: Annotated[str, Depends(oauth2_scheme)]) -> str:
         ) from e
 
     if datetime.now(UTC).timestamp() > exp_ts:
+        logger.warning("Expired token rejected for user=%s", username)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token expired",
@@ -82,10 +89,12 @@ def require_user(token: Annotated[str, Depends(oauth2_scheme)]) -> str:
             hashlib.sha256,
         ).hexdigest()
         if not secrets.compare_digest(sig, expected):
+            logger.warning("Invalid signature rejected for user=%s", username)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token signature",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
+    logger.debug("Token validated for user=%s", username)
     return username

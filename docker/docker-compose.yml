@@ -5,10 +5,12 @@ name: auth-service
 services:
   api:
     image: auth-service:dev
+    pull_policy: never
     container_name: auth-service-api-dev
     build:
       context: ..
       dockerfile: docker/Dockerfile
+      target: runtime
     env_file:
       - ../.env
     ports:
@@ -20,3 +22,19 @@ services:
       --host 0.0.0.0
       --port 8000
       --reload
+
+  test:
+    image: auth-service:test
+    pull_policy: never
+    container_name: auth-service-test-dev
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: devtest
+    env_file:
+      - ../.env
+    environment:
+      APP_ENV: test
+    volumes:
+      - ../:/app
+    command: python -m pytest -q

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -7,6 +8,8 @@ from pydantic import BaseModel
 
 from app.api.auth import require_user
 from app.services import users_service
+
+logger = logging.getLogger(__name__)
 
 # Endpoint Logic - defines GET /users and POST /users
 # Delegates to users_service.list_users()
@@ -37,11 +40,13 @@ def post_user(
     try:
         user = users_service.create_user(email=payload.email)
     except users_service.UserAlreadyExistsError:
+        logger.warning("Duplicate user rejected email=%s", payload.email)
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="email already exists",
         ) from None
     except users_service.UserValidationError as e:
+        logger.warning("Invalid user payload: %s", e)
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(e),

@@ -120,9 +120,20 @@ docker compose -f docker/docker-compose.yml logs
 To follow logs live:
 docker compose -f docker/docker-compose.yml logs -f
 
+Test an auth-service Endpoint
+curl -i <http://localhost:8000/health>
+
+Run tests
+docker compose -f docker/docker-compose.yml run --rm test
+docker compose -f docker/docker-compose.yml run --rm test tests/api/test_auth.py -q
+docker compose -f docker/docker-compose.yml run --rm test -k health -q
+
+Run tests using a running container, start that container then:
+docker compose -f docker/docker-compose.yml up -d test
+docker compose -f docker/docker-compose.yml exec test python -m pytest -q
+
 ## Step 5 — Stop the Application
 
-To stop and remove containers:
 docker compose -f docker/docker-compose.yml down
 
 This stops containers and removes:
