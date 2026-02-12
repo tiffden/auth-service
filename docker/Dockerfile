@@ -1,11 +1,11 @@
+# syntax=docker/dockerfile:1
 # --------------------
 # HOW TO RUN:
-# docker build -t auth-service:dev .
-# docker run --rm -p 8000:8000 auth-service:dev
-# 
-# docker history auth-services:dev
+# docker build -f docker/Dockerfile --target runtime -t auth-service:dev .
+# docker run --rm -p 8000:8000 --env-file .env auth-service:dev
+#
+# docker history auth-service:dev
 # --------------------
-# syntax=docker/dockerfile:1
 
 ############################
 # Stage 1 — builder (wheels)
