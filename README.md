@@ -1,12 +1,31 @@
-# auth-service
+# auth-service - a FastAPI authentication service
 
 ![CI](https://github.com/tiffden/auth-service/actions/workflows/ci.yml/badge.svg?branch=main)
 
-FastAPI authentication service with layered structure:
-app routers in `app/api/`,
-business logic in `app/services/`,
-app wiring in `app/main.py`,
-logging in `app/core/`.
+**auth-service** is a security-first authentication and authorization microservice built with FastAPI, designed around explicit threat modeling and strong security invariants. It implements OAuth 2.1–aligned flows (Authorization Code + PKCE), short-lived JWT access tokens with strict claim validation, and server-managed refresh tokens with rotation and revocation support. Role-based access control is enforced server-side using a “thin router, fat service” architecture to prevent client-supplied privilege escalation. Passwords are hashed using Argon2 with calibrated parameters, tokens are time-bounded and audience-scoped, and all privileged operations require server-issued credentials. The service is containerized via multi-stage Docker builds, integrates CI for linting and test enforcement, and isolates configuration via environment separation to avoid secret leakage. The project emphasizes defensive design, testable security boundaries, and operational clarity consistent with modern backend security practices.
+
+## Security Model
+
+This service is designed under an explicit threat model assuming untrusted clients, token interception attempts, replay attacks, and privilege escalation attempts. Authentication and authorization are strictly separated: identity is established via OAuth 2.1–aligned flows (Authorization Code + PKCE), while authorization decisions are enforced server-side within the service layer—not derived from client input. Access tokens are short-lived, cryptographically signed JWTs with validated issuer, audience, expiration, and scope claims. Refresh tokens are opaque, server-stored, rotated on use, and revocable to limit replay risk. Passwords are hashed using Argon2 with tuned cost parameters to resist GPU-based cracking. No endpoint trusts client-supplied role data, and all privileged actions require a verified server-issued token. Configuration and secrets are environment-scoped to prevent leakage across dev/test/prod boundaries. Security invariants are enforced via automated tests and CI to prevent regression.
+
+## Project Structure
+
+```text
+app/
+  api/       # FastAPI route handlers
+  core/      # config, logging, and security helpers
+  models/    # domain entities
+  repos/     # data access/repository layer
+  services/  # business logic/use cases
+  main.py    # app factory/wiring
+docker/
+  Dockerfile
+  docker-compose.yml
+tests/
+  api/
+  core/
+  services/
+```
 
 ## 1) New `.venv` Build and Run
 
