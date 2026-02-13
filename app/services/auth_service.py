@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHash, VerificationError, VerifyMismatchError
 
@@ -8,6 +10,8 @@ from app.repos.user_repo import UserRepo
 
 # Tunable; defaults are generally reasonable. You can pin parameters later.
 # Argon2 hash strings encode parameters + salt
+logger = logging.getLogger(__name__)
+
 _ph = PasswordHasher()
 
 
@@ -41,9 +45,9 @@ def authenticate_user(repo: UserRepo, email: str, password: str) -> User | None:
     # This is a “nice later” feature; safe to include now.
     try:
         if _ph.check_needs_rehash(user.password_hash):
-            # You'd persist this via repo in a real DB-backed repo.
-            # For in-memory, you could add a method like repo.update_password_hash(...)
-            pass
+            new_hash = _ph.hash(password)
+            repo.update_password_hash(user.id, new_hash)
+            logger.info("Rehashed password for user=%s", user.id)
     except InvalidHash:
         # If it's not a valid argon2 hash, treat as non-auth (already handled above),
         # but don't blow up.
