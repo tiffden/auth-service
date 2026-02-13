@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="auth-service",
-    docs_url="/docs" if not SETTINGS.is_prod else None,
-    redoc_url="/redoc" if not SETTINGS.is_prod else None,
+    docs_url="/docs" if SETTINGS.is_dev else None,
+    redoc_url="/redoc" if SETTINGS.is_dev else None,
 )
 
 app.include_router(health_router)
@@ -31,5 +31,5 @@ logger.info(
     "auth-service started  env=%s log_level=%s docs=%s",
     SETTINGS.app_env,
     SETTINGS.log_level,
-    "on" if not SETTINGS.is_prod else "off",
+    "on" if SETTINGS.is_dev else "off",
 )

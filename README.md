@@ -27,7 +27,59 @@ tests/
   services/
 ```
 
-## 1) New `.venv` Build and Run
+## Components
+
+FastAPI app  →  Uvicorn (ASGI server)  →  Python process  →  Docker container
+
+**FastAPI** - Python object model to provide async API functionality
+
+**Uvicorn** - ASGI Server
+ • Bind to a TCP port
+ • Accept HTTP connections
+ • Translate HTTP → ASGI calls
+ • Run the FastAPI async app instance
+
+**Python process** - auth-server/main.py
+ • Creates async app using a FastAPI function: *app=FastAPI()*
+ • Adds routers to the asynch app using FastAPI function: *APIRouter(tags=["health"])*
+ • Attaches endpoints to routers using FastAPI function in decorators: *@router.get("/health")*
+ • Provides the handlers for processing and response creation for the endpoints:  *get, post*
+
+**Docker container** - wraps the above components
+
+1) Docker Build - packages into an **image**:
+ • Python
+ • Dependencies
+ • auth-service code
+ • The command to run it (uvicorn)
+2) Docker Run - starts a container from the image
+ • Executes the CMD in the Dockerfile: *CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", port...]*
+
+**Host 0.0.0.0**
+The selection of Host 0.0.0.0 exposes the port outside of Docker.
+
+## 1) Development Environment
+
+### Initial Tools
+
+On a clean macOS, you need four things from Homebrew:
+
+1) **python@3.12** — The project requires >=3.12 and the README uses python3.12 explicitly
+
+2) **git** — macOS includes Apple Git via Xcode CLT, but Homebrew's is newer and avoids needing the full Xcode install
+
+3) **gh** — (optional) GitHub CLI, used in the "Merge Changes into Main" section for gh pr create
+
+4) **Docker** — For building/running container images (use homebrew or install app from docker.com)
+
+```bash
+brew install python@3.12 git gh
+brew install --cask docker
+```
+
+That's it. Everything else (fastapi, uvicorn, ruff, pytest, pre-commit, argon2-cffi) is Python-level and gets installed via pip install -e ".[dev]". No system-level C libraries are needed — argon2-cffi ships pre-built wheels for macOS.
+
+### Create New `.venv`
 
 ```bash
 # from repo root
@@ -36,39 +88,60 @@ source .venv/bin/activate
 
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
+```
 
+### Set Environment 'dev' and Log Level (found in root/.env)
+
+```bash
 cp .env.example .env
+```
 
+In **.env**, set: `APP_ENV=dev`
+
+- `APP_ENV`: `dev` | `test` | `prod` (default: `dev`)
+- `LOG_LEVEL`: `debug` | `info` | `warning` | `error` (default: `info`)
+
+### Start a Feature Branch
+
+Always work on a branch, not directly on `main`:
+
+1) switch to main branch
+2) pull latest code
+3) create a new branch
+
+```bash
+git checkout main
+git pull origin main
+git checkout -b feature/short-description
+```
+
+### After Pulling Changes (or Adding to the Project)
+
+Pull in any new code, then any changed dependencies:
+
+```bash
+git pull origin main
+python -m pip install -e ".[dev]"
+```
+
+### Terminal 1 - Run ASGI Server
+
+For fast debugging, *don't build and run Docker*, just run the ASGI server directly
+and test calls to it from a second terminal.
+
+```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Health check:
+### Terminal 2 - Test Code
+
+Health check of server:
 
 ```bash
 curl -s http://127.0.0.1:8000/health
 ```
 
-Run tests:
-
-```bash
-python -m pytest -q
-# or
-make test
-```
-
-## 2) Run After Adding to the Project
-
-Use this flow after pulling changes or adding code in an existing clone:
-
-```bash
-# from repo root
-source .venv/bin/activate
-python -m pip install -e ".[dev]"
-
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-Run tests and checks:
+Run auth-service tests:
 
 ```bash
 python -m pytest -q
@@ -81,51 +154,186 @@ make ci
 2. `python -m ruff format --check .`
 3. `python -m pytest -q`
 
-## 3) Docker Build and Run
+### Terminal 1 - Run Docker At Least Once Before Committing Code
 
-Build runtime image:
+Stop uvicorn (Ctrl+C)
+
+Start Docker daemon:  Run the MacOS Docker app in: *Applications directory*
 
 ```bash
 docker build -f docker/Dockerfile --target runtime -t auth-service:dev .
-```
-
-Run runtime image:
-
-```bash
 docker run --rm -p 8000:8000 --env-file .env auth-service:dev
 ```
 
-Build and run with Compose (dev API service):
+### Terminal 2 - Test Environment
 
 ```bash
-docker compose -f docker/docker-compose.yml up --build api
+python -m pytest -q
 ```
 
-Run tests in Docker:
+### Check In Code to Git
+
+Stage specific files (avoid `git add .` which can accidentally include
+`.env` or other secrets):
 
 ```bash
-docker build -f docker/Dockerfile --target devtest -t auth-service:test .
-docker run --rm auth-service:test
-
-# or compose test service
-docker compose -f docker/docker-compose.yml run --rm test
+git status
+git add app/services/auth_service.py tests/api/test_auth.py
+git commit -m "feat: Imperative-verb task description"
+git push -u origin feature/short-description
 ```
 
-## 4) Test and Prod Modes
+### Merge Changes into Main
 
-Test mode:
+Open a pull request on GitHub for review before merging to `main`:
 
-- Local tests: `APP_ENV=test python -m pytest -q`
-- Docker test image (`devtest` stage) sets `APP_ENV=test`
-- Compose `test` service forces `APP_ENV=test`
+```bash
+gh pr create --title "feat: Short description" --body "Summary of changes"
+```
 
-Prod mode:
+Or create the PR through the GitHub web UI. Once CI passes and the PR
+is approved:
 
-- Set `APP_ENV=prod` in runtime environment
-- Runtime Docker image defaults to `APP_ENV=prod`
-- In prod, API docs endpoints are disabled (`/docs`, `/redoc`)
+1. Merge the PR on GitHub (prefer "Squash and merge" for a clean history)
+2. Delete the remote feature branch (GitHub offers this after merge)
+3. Locally, switch back and clean up:
 
-## Environment Variables
+```bash
+git checkout main
+git pull origin main
+git branch -d feature/short-description
+```
+
+## 2) Staging/Test Environment
+
+Staging mirrors production as closely as possible. Its purpose is to
+**validate a release candidate**, not to develop features. Code changes
+happen in dev; staging proves they work in a production-like container
+before going live.
+
+### Use the Same Clone — Switch to the Release Branch
+
+No separate directory needed. Use your existing clone and check out
+the branch or tag you want to validate
+
+```bash
+git fetch origin
+git checkout main
+```
+
+### Set Environment 'test' and Log Level 'info' (found in root/.env)
+
+cp .env.example .env
+In **.env**, set: `APP_ENV=test` `LOG_LEVEL=info`
 
 - `APP_ENV`: `dev` | `test` | `prod` (default: `dev`)
 - `LOG_LEVEL`: `debug` | `info` | `warning` | `error` (default: `info`)
+
+### Terminal 1 - Build and Run the Runtime Image
+
+Use `docker build` + `docker run` directly — not Compose. The Compose
+file mounts local volumes and adds `--reload`, which are dev
+conveniences that mask problems the real image would hit. Staging
+should run the same sealed image that production will use.
+
+`APP_ENV=test` behaves like `prod` (API docs disabled) but signals
+the test environment for config and logging purposes.
+
+```bash
+docker build -f docker/Dockerfile --target runtime -t auth-service:test .
+docker run --rm -p 8000:8000 --env-file .env auth-service:test
+```
+
+### Terminal 2 - Run the Test Suite in Docker
+
+The `devtest` Dockerfile stage includes dev dependencies (pytest, ruff)
+and sets `APP_ENV=test`. Run it separately to validate tests pass
+inside the container:
+
+```bash
+docker build -f docker/Dockerfile --target devtest -t auth-service:devtest .
+docker run --rm auth-service:devtest
+```
+
+## 3) Production Environment
+
+Production uses the same `runtime` Docker image as staging. The
+differences are operational, not structural:
+
+- **Test** stages and runs the full test suite inside the container to
+  validate the build. API docs (`/docs`, `/redoc`) are disabled.
+- **Production** never includes test tooling. API docs are disabled
+  (`APP_ENV=prod`). The image is identical to what staging validated —
+  only the environment variables and infrastructure (load balancer,
+  DNS, secrets) change.
+
+### Set Environment 'prod' and Log Level (found in root/.env)
+
+cp .env.example .env
+In **.env**, set: `APP_ENV=prod`, `LOG_LEVEL=info`
+
+- `APP_ENV`: `dev` | `test` | `prod` (default: `dev`)
+- `LOG_LEVEL`: `debug` | `info` | `warning` | `error` (default: `info`)
+
+### Build and Run Docker
+
+- Runtime Docker image defaults to `APP_ENV=prod` if not overridden as
+  an argument to prevent accidentally running in dev mode
+- In prod, API docs endpoints are disabled (`/docs`, `/redoc`)
+
+```bash
+docker build -f docker/Dockerfile --target runtime -t auth-service:prod .
+docker run --rm -p 8000:8000 --env-file .env auth-service:prod
+```
+
+### Verify Production
+
+Production is not tested with pytest — the test suite ran in staging.
+Verify production with a health check and smoke test:
+
+```bash
+curl -s http://<host>:8000/health
+```
+
+Confirm docs are disabled:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}" http://<host>:8000/docs
+# expect 404
+```
+
+## Best Practices
+
+**Environment separation** — Never develop against `APP_ENV=prod`.
+Keep `.env` out of version control (`.gitignore`). Each environment
+gets its own `.env` with appropriate values; secrets are never shared
+across boundaries.
+
+**Branch workflow** — Do all feature work on short-lived branches off
+`main`. Merge via pull request with CI passing. Tag releases for
+staging/production deploys.
+
+**Run `make ci` before every push** — The pre-commit hook catches lint
+issues at commit time, but `make ci` runs the full check (ruff check,
+ruff format, pytest) to match what GitHub Actions will enforce.
+
+**Docker image tags** — Use descriptive tags that match the environment:
+`auth-service:dev` for the runtime image during development,
+`auth-service:test` for the devtest stage, `auth-service:prod` for
+production. Never deploy an image tagged `:test` to production.
+
+**Same image, different config** — Staging and production use the same
+`runtime` Dockerfile stage. The only difference is environment
+variables. This ensures what you tested is what you deploy.
+
+**Non-root containers** — The Dockerfile runs as `appuser`, not root.
+Never override this with `--user root` in production.
+
+**Keep dependencies minimal** — The `runtime` stage has no dev tooling.
+Test dependencies (pytest, ruff) only exist in the `devtest` stage.
+This reduces the attack surface of the production image.
+
+**Structured logging** — Log at appropriate levels (INFO for normal
+operations, WARNING for recoverable issues, ERROR for failures). Never
+log passwords, tokens, or secrets. Use `LOG_LEVEL` to control
+verbosity per environment.
