@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-import hmac
 import logging
-import os
 import secrets
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
@@ -15,7 +13,7 @@ from pydantic import BaseModel
 from app.models.authorization_code import AuthorizationCode
 from app.repos.auth_code_repo import InMemoryAuthCodeRepo
 from app.repos.oauth_client_repo import InMemoryOAuthClientRepo
-from app.services import pkce_service
+from app.services import pkce_service, token_service
 
 # ---------------------------------------------------------------------------
 # Authorization Server — OAuth 2.1 Authorization Code + PKCE
@@ -37,8 +35,6 @@ router = APIRouter(tags=["oauth"])
 auth_code_repo = InMemoryAuthCodeRepo()
 client_repo = InMemoryOAuthClientRepo()
 
-TOKEN_TTL_MIN = 30
-TOKEN_SIGNING_SECRET = os.getenv("TOKEN_SIGNING_SECRET", "dev-only-secret-change-me")
 AUTH_CODE_TTL_SEC = 600  # 10 minutes — intentionally generous for stub
 
 # TRADE-OFF: Authorization codes should be short-lived (30-120s in production).
@@ -251,24 +247,20 @@ def exchange_token(
         "- client proved possession of verifier  ✓"
     )
 
-    # --- Issue access token ----------------------------------------------------
-    # STUB: reusing the existing HMAC token format. Replace with real JWT (RFC 7519)
-    # using asymmetric signing (EdDSA/ES256) in the next iteration.
-    expires_at = datetime.now(UTC) + timedelta(minutes=TOKEN_TTL_MIN)
-    exp_ts = int(expires_at.timestamp())
-    token_core = f"user:{record.user_id}|exp:{exp_ts}"
-    sig = hmac.new(
-        TOKEN_SIGNING_SECRET.encode(),
-        token_core.encode(),
-        hashlib.sha256,
-    ).hexdigest()
-    access_token = f"{token_core}|sig:{sig}"
+    # --- Issue access token (JWT / ES256) --------------------------------------
+    access_token = token_service.create_access_token(
+        sub=record.user_id,
+        scope=record.scope,
+    )
 
     logger.info(
-        "PKCE FLOW [token] step 9: access token issued  user=%s expires_in=%d min  ✓",
+        "PKCE FLOW [token] step 9: JWT access token issued  "
+        "user=%s expires_in=%d min  ✓",
         record.user_id,
-        TOKEN_TTL_MIN,
+        token_service.ACCESS_TOKEN_TTL_MIN,
     )
     return Token(
-        access_token=access_token, token_type="bearer", expires_in=TOKEN_TTL_MIN * 60
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=token_service.ACCESS_TOKEN_TTL_MIN * 60,
     )
