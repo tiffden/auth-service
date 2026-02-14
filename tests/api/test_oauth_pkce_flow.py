@@ -299,3 +299,235 @@ def test_wrong_verifier_rejected() -> None:
     )
     assert resp.status_code == 400
     assert "PKCE verification failed" in resp.json()["detail"]
+
+
+# ---- /oauth/authorize FAIL POINT tests ----
+
+
+def test_unknown_client_id_rejected() -> None:
+    """Unknown client_id → 400 (never redirect to an unvalidated URI)."""
+    client = TestClient(app, follow_redirects=False)
+    _reset_oauth_state()
+    _login(client)
+
+    verifier = pkce_service.generate_code_verifier()
+    challenge = pkce_service.compute_code_challenge(verifier)
+
+    resp = client.get(
+        "/oauth/authorize",
+        params={
+            "client_id": "nonexistent-client",
+            "redirect_uri": REDIRECT_URI,
+            "response_type": "code",
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+        },
+    )
+    assert resp.status_code == 400
+    assert "unknown client_id" in resp.json()["detail"]
+
+
+def test_wrong_redirect_uri_rejected() -> None:
+    """redirect_uri not matching registered URIs → 400."""
+    client = TestClient(app, follow_redirects=False)
+    _reset_oauth_state()
+    _register_test_client()
+    _login(client)
+
+    verifier = pkce_service.generate_code_verifier()
+    challenge = pkce_service.compute_code_challenge(verifier)
+
+    resp = client.get(
+        "/oauth/authorize",
+        params={
+            "client_id": CLIENT_ID,
+            "redirect_uri": "http://evil.com/steal",
+            "response_type": "code",
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+        },
+    )
+    assert resp.status_code == 400
+    assert "redirect_uri not registered" in resp.json()["detail"]
+
+
+def test_wrong_response_type_rejected() -> None:
+    """response_type != 'code' → 400 (OAuth 2.1 drops implicit grant)."""
+    client = TestClient(app, follow_redirects=False)
+    _reset_oauth_state()
+    _register_test_client()
+    _login(client)
+
+    verifier = pkce_service.generate_code_verifier()
+    challenge = pkce_service.compute_code_challenge(verifier)
+
+    resp = client.get(
+        "/oauth/authorize",
+        params={
+            "client_id": CLIENT_ID,
+            "redirect_uri": REDIRECT_URI,
+            "response_type": "token",  # implicit grant — banned in OAuth 2.1
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+        },
+    )
+    assert resp.status_code == 400
+    assert "response_type must be 'code'" in resp.json()["detail"]
+
+
+def test_plain_pkce_method_rejected() -> None:
+    """code_challenge_method=plain → 400 (OAuth 2.1 requires S256)."""
+    client = TestClient(app, follow_redirects=False)
+    _reset_oauth_state()
+    _register_test_client()
+    _login(client)
+
+    verifier = pkce_service.generate_code_verifier()
+
+    resp = client.get(
+        "/oauth/authorize",
+        params={
+            "client_id": CLIENT_ID,
+            "redirect_uri": REDIRECT_URI,
+            "response_type": "code",
+            "code_challenge": verifier,  # plain = verifier used as challenge
+            "code_challenge_method": "plain",
+        },
+    )
+    assert resp.status_code == 400
+    assert "code_challenge_method must be S256" in resp.json()["detail"]
+
+
+def test_short_code_challenge_rejected() -> None:
+    """A code_challenge shorter than 43 chars → 400."""
+    client = TestClient(app, follow_redirects=False)
+    _reset_oauth_state()
+    _register_test_client()
+    _login(client)
+
+    resp = client.get(
+        "/oauth/authorize",
+        params={
+            "client_id": CLIENT_ID,
+            "redirect_uri": REDIRECT_URI,
+            "response_type": "code",
+            "code_challenge": "too-short",
+            "code_challenge_method": "S256",
+        },
+    )
+    assert resp.status_code == 400
+    assert "invalid code_challenge" in resp.json()["detail"]
+
+
+# ---- /oauth/token FAIL POINT tests ----
+
+
+def test_invalid_authorization_code_rejected() -> None:
+    """A fabricated authorization code → 400."""
+    client = TestClient(app, follow_redirects=False)
+    _reset_oauth_state()
+    _register_test_client()
+
+    resp = client.post(
+        "/oauth/token",
+        data={
+            "grant_type": "authorization_code",
+            "code": "totally-fabricated-code",
+            "redirect_uri": REDIRECT_URI,
+            "client_id": CLIENT_ID,
+            "code_verifier": "does-not-matter",
+        },
+    )
+    assert resp.status_code == 400
+    assert "invalid authorization code" in resp.json()["detail"]
+
+
+def test_wrong_grant_type_rejected() -> None:
+    """grant_type != authorization_code → 400."""
+    client = TestClient(app, follow_redirects=False)
+    _reset_oauth_state()
+
+    resp = client.post(
+        "/oauth/token",
+        data={
+            "grant_type": "password",  # deprecated in OAuth 2.1
+            "code": "x",
+            "redirect_uri": REDIRECT_URI,
+            "client_id": CLIENT_ID,
+            "code_verifier": "x",
+        },
+    )
+    assert resp.status_code == 400
+    assert "grant_type must be authorization_code" in resp.json()["detail"]
+
+
+def test_client_id_mismatch_rejected() -> None:
+    """Exchanging a code with a different client_id → 400."""
+    client = TestClient(app, follow_redirects=False)
+    _reset_oauth_state()
+    _register_test_client()
+    _login(client)
+
+    verifier = pkce_service.generate_code_verifier()
+    challenge = pkce_service.compute_code_challenge(verifier)
+
+    auth_resp = client.get(
+        "/oauth/authorize",
+        params={
+            "client_id": CLIENT_ID,
+            "redirect_uri": REDIRECT_URI,
+            "response_type": "code",
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+        },
+    )
+    code = parse_qs(urlparse(auth_resp.headers["location"]).query)["code"][0]
+
+    resp = client.post(
+        "/oauth/token",
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": REDIRECT_URI,
+            "client_id": "different-client-id",
+            "code_verifier": verifier,
+        },
+    )
+    assert resp.status_code == 400
+    assert "client_id mismatch" in resp.json()["detail"]
+
+
+def test_redirect_uri_mismatch_on_token_rejected() -> None:
+    """redirect_uri on /token must match what was sent to /authorize."""
+    client = TestClient(app, follow_redirects=False)
+    _reset_oauth_state()
+    _register_test_client()
+    _login(client)
+
+    verifier = pkce_service.generate_code_verifier()
+    challenge = pkce_service.compute_code_challenge(verifier)
+
+    auth_resp = client.get(
+        "/oauth/authorize",
+        params={
+            "client_id": CLIENT_ID,
+            "redirect_uri": REDIRECT_URI,
+            "response_type": "code",
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+        },
+    )
+    code = parse_qs(urlparse(auth_resp.headers["location"]).query)["code"][0]
+
+    resp = client.post(
+        "/oauth/token",
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": "http://different.com/callback",
+            "client_id": CLIENT_ID,
+            "code_verifier": verifier,
+        },
+    )
+    assert resp.status_code == 400
+    assert "redirect_uri mismatch" in resp.json()["detail"]
