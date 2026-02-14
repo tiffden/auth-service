@@ -4,12 +4,13 @@ import hashlib
 import logging
 import secrets
 from datetime import UTC, datetime, timedelta
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
-from fastapi import APIRouter, Form, HTTPException, Query, status
+from fastapi import APIRouter, Form, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
+from app.api.dependencies import get_interactive_user
 from app.models.authorization_code import AuthorizationCode
 from app.repos.auth_code_repo import InMemoryAuthCodeRepo
 from app.repos.oauth_client_repo import InMemoryOAuthClientRepo
@@ -54,6 +55,7 @@ class Token(BaseModel):
 
 @router.get("/oauth/authorize")
 def authorize(
+    request: Request,
     client_id: str = Query(...),
     redirect_uri: str = Query(...),
     response_type: str = Query(...),
@@ -104,12 +106,22 @@ def authorize(
     logger.info("PKCE FLOW [authorize] step 5: PKCE params valid (S256)  ✓")
 
     # --- Authenticate the user -------------------------------------------------
-    # FAIL POINT: user not authenticated → show login page (not implemented yet).
-    # STUB: hardcoded user_id for skeleton. In production this would come from
-    # a session cookie or an upstream identity provider.
-    user_id = "test-user"
+    # FAIL POINT: user not authenticated → redirect to /login.
+    # The session cookie is a signed JWT (ES256, aud=auth-service-session).
+    # get_interactive_user() returns None if the cookie is missing, expired,
+    # or has an invalid signature.
+    user_id = get_interactive_user(request)
+    if user_id is None:
+        # Preserve the full authorize URL so /login can redirect back.
+        login_url = f"/login?next={quote(str(request.url))}"
+        logger.info(
+            "PKCE FLOW [authorize] step 6: user not authenticated"
+            "  → redirecting to /login"
+        )
+        return RedirectResponse(url=login_url, status_code=302)
     logger.info(
-        "PKCE FLOW [authorize] step 6: user authenticated  user_id=%s  (stub)", user_id
+        "PKCE FLOW [authorize] step 6: user authenticated  user_id=%s",
+        user_id,
     )
 
     # --- Generate authorization code -------------------------------------------

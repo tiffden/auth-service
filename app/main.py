@@ -5,6 +5,7 @@ import logging
 from fastapi import FastAPI
 
 from app.api.health import router as health_router
+from app.api.login import router as login_router
 from app.api.oauth import router as oauth_router
 from app.api.resource import router as resource_router
 from app.api.users import router as users_router
@@ -25,6 +26,7 @@ app = FastAPI(
 )
 
 app.include_router(health_router)
+app.include_router(login_router)
 app.include_router(oauth_router)
 app.include_router(resource_router)
 app.include_router(users_router)

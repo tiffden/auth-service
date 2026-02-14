@@ -25,6 +25,11 @@ ISSUER = "auth-service"
 AUDIENCE = "auth-service"
 ACCESS_TOKEN_TTL_MIN = 15  # short TTL per design docs
 
+# Session cookies use the same signing key but a different audience
+# so a session JWT can never be confused with an access token.
+SESSION_AUDIENCE = "auth-service-session"
+SESSION_TTL_MIN = 30  # longer than access token — "logged in to auth server"
+
 
 def create_access_token(
     *,
@@ -65,5 +70,41 @@ def decode_access_token(token: str) -> dict:
         algorithms=[ALGORITHM],
         issuer=ISSUER,
         audience=AUDIENCE,
+        options={"require": ["sub", "exp", "iat", "jti"]},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Session tokens (browser cookies for /oauth/authorize)
+# ---------------------------------------------------------------------------
+# Same ES256 key pair, different audience. A session JWT proves "this user
+# authenticated with the auth server" — it is NOT an API access token.
+
+
+def create_session_token(*, sub: str) -> str:
+    """Build and sign a session JWT for the session cookie."""
+    now = datetime.now(UTC)
+    payload = {
+        "sub": sub,
+        "iss": ISSUER,
+        "aud": SESSION_AUDIENCE,
+        "exp": now + timedelta(minutes=SESSION_TTL_MIN),
+        "iat": now,
+        "jti": str(uuid.uuid4()),
+    }
+    return jwt.encode(payload, _private_key, algorithm=ALGORITHM)
+
+
+def decode_session_token(token: str) -> dict:
+    """Verify a session JWT. Pins audience to SESSION_AUDIENCE.
+
+    Raises jwt.ExpiredSignatureError, jwt.InvalidTokenError on failure.
+    """
+    return jwt.decode(
+        token,
+        _public_key,
+        algorithms=[ALGORITHM],
+        issuer=ISSUER,
+        audience=SESSION_AUDIENCE,
         options={"require": ["sub", "exp", "iat", "jti"]},
     )
