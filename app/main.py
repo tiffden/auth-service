@@ -32,8 +32,9 @@ app.include_router(resource_router)
 app.include_router(users_router)
 
 logger.info(
-    "auth-service started  env=%s log_level=%s docs=%s",
+    "auth-service started  env=%s log_level=%s port=%d docs=%s",
     SETTINGS.app_env,
     SETTINGS.log_level,
+    SETTINGS.port,
     "on" if SETTINGS.is_dev else "off",
 )

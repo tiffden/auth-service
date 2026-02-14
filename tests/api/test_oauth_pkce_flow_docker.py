@@ -2,7 +2,8 @@
 
 This is the HTTP-over-the-wire counterpart of test_oauth_pkce_flow.py.
 Instead of FastAPI's in-process TestClient, it uses httpx to drive the
-full PKCE handshake against a **running Docker container** on port 8000.
+full PKCE handshake against a **running Docker container**.
+Port defaults to 8000; override with the PORT env var in .env.
 
 Prerequisites:
   1. Build and start the container:
@@ -24,6 +25,7 @@ Flow:
 from __future__ import annotations
 
 import logging
+import os
 from urllib.parse import parse_qs, urlparse
 
 import httpx
@@ -33,7 +35,8 @@ from app.services import pkce_service
 
 logger = logging.getLogger(__name__)
 
-BASE_URL = "http://localhost:8000"
+_PORT = os.environ.get("PORT", "8000")
+BASE_URL = f"http://localhost:{_PORT}"
 
 CLIENT_ID = "docker-test-client"
 REDIRECT_URI = "http://localhost/callback"
