@@ -211,7 +211,8 @@ git pull origin main
 If continuing with a new feature, create your new branch
 
 ```bash
-git checkout -b my-new-feature
+git checkout -b my-new-branch-name
+git push -u origin my-new-branch-name
 ```
 
 ## 2) Staging/Test Environment
