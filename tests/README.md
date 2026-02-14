@@ -3,13 +3,22 @@
 ## Directory layout
 
 tests/
-  conftest.py              # shared fixtures (client, token, state reset)
+  conftest.py                       # shared fixtures (client, token, state reset)
   api/
-    test_auth.py            # POST /auth/token
-    test_health.py          # GET  /health
-    test_users.py           # GET  /users, POST /users
+    test_auth.py                     # POST /auth/token
+    test_health.py                   # GET  /health
+    test_login.py                    # GET/POST /login
+    test_log_secrets.py              # sensitive data logging checks
+    test_oauth_pkce_flow.py          # OAuth PKCE flow (in-process, TestClient)
+    test_oauth_pkce_flow_docker.py   # OAuth PKCE flow (live Docker, httpx)
+    test_routing.py                  # route registration checks
+    test_users.py                    # GET  /users, POST /users
+  core/
+    test_config.py                   # Settings + env var loading
+    test_logging.py                  # log formatter tests
   services/
-    test_users_service.py   # users_service unit tests
+    test_auth_service.py             # password hashing + authentication
+    test_users_service.py            # users_service unit tests
 
 The structure mirrors `app/` so every module has a predictable test
 location: `app/api/auth.py` -> `tests/api/test_auth.py`.
@@ -25,7 +34,7 @@ Installs `pytest`, `pytest-cov`, `ruff`, and `pre-commit` from the
 
 ## Running tests
 
-### 1. Local (on your machine)
+### 1. Local — unit/integration (no server required)
 
 >bash
 (picks up quiet from: -q flag via pyproject.toml addopts)
@@ -33,14 +42,18 @@ make test
 
 (equivalent to: python -m pytest -q)
 
+These tests use FastAPI's `TestClient`, which runs the app in-process --
+no uvicorn, no Docker, no network. The `docker`-marked tests are excluded
+by default via `addopts = "-q -m 'not docker'"` in `pyproject.toml`.
+
 ## verbose / single file / single test
 
-python -m pytest -v
+python -m pytest -v -m 'not docker'
 python -m pytest tests/api/test_auth.py
 python -m pytest tests/api/test_auth.py::test_auth_token_accepts_good_creds_and_returns_token_and_expiry
 
 (with coverage)
-python -m pytest --cov=app --cov-report=term-missing
+python -m pytest --cov=app --cov-report=term-missing -m 'not docker'
 
 **Environment used:** whatever is in your `.env` (typically `APP_ENV=dev`).
 Pytest does not override `APP_ENV` by default, so `SETTINGS.is_dev` will be
@@ -49,6 +62,24 @@ Pytest does not override `APP_ENV` by default, so `SETTINGS.is_dev` will be
 
 bash>
 APP_ENV=test python -m pytest -q
+
+### 1b. Local — Docker integration (live container required)
+
+Tests in `test_oauth_pkce_flow_docker.py` use `httpx` to send real HTTP
+requests to a running Docker container. They are marked `@pytest.mark.docker`
+and skipped by default.
+
+>bash
+(Terminal 1: start the container)
+docker build -f docker/Dockerfile --target runtime -t auth-service:dev .
+docker run --rm --name auth-service-dev -p 8000:8000 \
+  --env-file .env auth-service:dev
+
+(Terminal 2: run only Docker integration tests)
+pytest -m docker -v --log-cli-level=INFO
+
+The `PORT` env var (default `8000`) controls which port both the container
+and the test suite use. Set it in `.env` to change the port.
 
 ### 2. Docker (containerized)
 
@@ -102,8 +133,13 @@ validation step.
     The `devtest` Docker stage and compose `test` service both set this to `test`
 
 `LOG_LEVEL`
-    one of:  `info` | `.env` | `debug`, `info`, `warning`, `error`.
+    one of:  `debug`, `info`, `warning`, `error`.
     No direct test impact
+
+`PORT`
+    defaults to: `8000`
+    set in: `.env`, Dockerfile `ENV`
+    Controls uvicorn bind port and Docker integration test target URL
 
 `TOKEN_SIGNING_SECRET`
     hard-coded:  `dev-only-secret-change-me`
@@ -115,8 +151,8 @@ validation step.
 
 `/docs` and `/redoc` endpoint
 dev:  Enabled
-test: Enabled
-prod: Disabled ('None')
+test: Disabled
+prod: Disabled
 
 `TOKEN_SIGNING_SECRET`
 dev:  Falls back to hardcoded default
@@ -137,12 +173,17 @@ prod: No
 ## Key files that affect test behavior
 
 pyproject.toml [tool.pytest.ini_options]
-  testpaths = ["tests"], addopts = "-q"
+  testpaths = ["tests"], addopts = "-q -m 'not docker'"
+  markers = ["docker: tests that require a running Docker container"]
 
 tests/conftest.py
   `reset_users_state` (autouse) -- resets the in-memory user list before every test.
-  `client` -- FastAPI `TestClient
-  'token` -- valid bearer token for protected endpoints
+  `client` -- FastAPI `TestClient`
+  `token` -- valid bearer token for protected endpoints
+
+tests/api/test_oauth_pkce_flow_docker.py
+  Docker integration tests using `httpx`. Marked `@pytest.mark.docker`.
+  Requires a running container; excluded from default `pytest -q` runs.
 
 .env / .env.example
   Loaded by compose; not loaded automatically by pytest on the host

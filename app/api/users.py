@@ -6,7 +6,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
-from app.api.auth import require_user
+from app.api.dependencies import require_role
+from app.models.principal import Principal
 from app.services import users_service
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,9 @@ class UserCreateIn(BaseModel):
 
 
 @router.get("/users", response_model=list[UserOut])
-def get_users(_username: Annotated[str, Depends(require_user)]) -> list[UserOut]:
+def get_users(
+    _principal: Annotated[Principal, Depends(require_role("admin"))],
+) -> list[UserOut]:
     users = users_service.list_users()
     return [UserOut(id=u.id, email=u.email) for u in users]
 
@@ -35,10 +38,11 @@ def get_users(_username: Annotated[str, Depends(require_user)]) -> list[UserOut]
 @router.post("/users", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def post_user(
     payload: UserCreateIn,
-    _username: Annotated[str, Depends(require_user)],
+    _principal: Annotated[Principal, Depends(require_role("admin"))],
 ) -> UserOut:
     try:
         user = users_service.create_user(email=payload.email)
+
     except users_service.UserAlreadyExistsError:
         logger.warning("Duplicate user rejected email=%s", payload.email)
         raise HTTPException(

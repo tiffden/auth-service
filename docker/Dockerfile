@@ -1,11 +1,11 @@
+# syntax=docker/dockerfile:1
 # --------------------
 # HOW TO RUN:
-# docker build -t auth-service:dev .
-# docker run --rm -p 8000:8000 auth-service:dev
-# 
-# docker history auth-services:dev
+# docker build -f docker/Dockerfile --target runtime -t auth-service:dev .
+# docker run --rm -p 8000:8000 --env-file .env auth-service:dev
+#
+# docker history auth-service:dev
 # --------------------
-# syntax=docker/dockerfile:1
 
 ############################
 # Stage 1 — builder (wheels)
@@ -75,7 +75,8 @@ RUN groupadd --system appuser \
 # - PYTHONUNBUFFERED=1: stdout/stderr unbuffered (logs appear immediately)
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    APP_ENV=prod
+    APP_ENV=prod \
+    PORT=8000
 
 # (Optional but common) tighten pip behavior in containers
 # Pip behavior hardening:
@@ -106,18 +107,19 @@ RUN --mount=type=bind,from=builder,source=/wheels,target=/wheels,readonly \
 # Now copy your app code (after deps for better caching).
 COPY --chown=appuser:appuser app ./app
 
-# If your FastAPI app is app.main:app, expose 8000 (basically names 8000:8000)
-EXPOSE 8000
+# Expose the port uvicorn will bind to (overridable via PORT env var)
+EXPOSE ${PORT}
 
 # Drop root privileges for runtime.
 USER appuser
 
 # Production-ish default command.
 # - Bind to 0.0.0.0 so the container is reachable from outside.
-# - Use a fixed port for predictable runtime behavior.
+# - Port is read from the PORT env var (default 8000).
+# - exec replaces the shell so uvicorn is PID 1 and receives SIGTERM directly.
 #
 # Note: In local dev you might add `--reload`, but avoid that in production images.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port $PORT"]
 
 ############################
 # Stage 3 — dev/test (tooling)

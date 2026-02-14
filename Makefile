@@ -13,5 +13,10 @@ format:
 test:
 	python -m pytest -q
 
-ci: lint format test
+test-docker:
+	pytest -m docker -v --log-cli-level=INFO
 
+test-docker-happy:
+	pytest -m docker -v --log-cli-level=INFO -k happy
+
+ci: lint format test

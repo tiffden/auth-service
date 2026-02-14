@@ -19,6 +19,12 @@ class _ContainerFormatter(logging.Formatter):
     def __init__(self) -> None:
         super().__init__(datefmt="%Y-%m-%dT%H:%M:%S%z")
 
+    def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
+        base = super().formatTime(record, datefmt)
+        ms = int(record.msecs)
+        # Insert .NNN before the timezone offset (last 5 chars: +0000)
+        return f"{base[:-5]}.{ms:03d}{base[-5:]}"
+
     def format(self, record: logging.LogRecord) -> str:
         if record.levelno >= logging.WARNING:
             self._style._fmt = self._BASE_FMT + self._LOC_SUFFIX

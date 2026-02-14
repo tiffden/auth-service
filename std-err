@@ -1,0 +1,138 @@
+pytest tests/api/test_oauth_pkce_flow.py -s --log-cli-level=INFO 
+2026-02-13T16:39:24-0800 INFO     app.main  auth-service started  env=dev log_level=info docs=on
+
+tests/api/test_oauth_pkce_flow.py::test_pkce_flow_happy_path 2026-02-13T16:39:24-0800 INFO     test_oauth_pkce_flow  CLIENT: generated PKCE verifier + challenge (S256)
+
+-------------------------------- live log call ---------------------------------
+INFO     test_oauth_pkce_flow:test_oauth_pkce_flow.py:64 CLIENT: generated PKCE verifier + challenge (S256)
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 1: received authorization request  client_id=test-client-id redirect_uri=http://localhost/callback scope=openid
+INFO     app.api.oauth:oauth.py:69 PKCE FLOW [authorize] step 1: received authorization request  client_id=test-client-id redirect_uri=http://localhost/callback scope=openid
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 2: response_type=code  ✓
+INFO     app.api.oauth:oauth.py:81 PKCE FLOW [authorize] step 2: response_type=code  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 3: client_id recognized  ✓
+INFO     app.api.oauth:oauth.py:88 PKCE FLOW [authorize] step 3: client_id recognized  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 4: redirect_uri matches registration  ✓
+INFO     app.api.oauth:oauth.py:97 PKCE FLOW [authorize] step 4: redirect_uri matches registration  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 5: PKCE params valid (S256)  ✓
+INFO     app.api.oauth:oauth.py:108 PKCE FLOW [authorize] step 5: PKCE params valid (S256)  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 6: user authenticated  user_id=test-user  (stub)
+INFO     app.api.oauth:oauth.py:115 PKCE FLOW [authorize] step 6: user authenticated  user_id=test-user  (stub)
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 7: authorization code generated  (hash=1791ee1f3849…)
+INFO     app.api.oauth:oauth.py:126 PKCE FLOW [authorize] step 7: authorization code generated  (hash=1791ee1f3849…)
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 8: code metadata stored  expires_at=1771030164
+INFO     app.api.oauth:oauth.py:146 PKCE FLOW [authorize] step 8: code metadata stored  expires_at=1771030164
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 9: redirecting to client  uri=http://localhost/callback
+INFO     app.api.oauth:oauth.py:155 PKCE FLOW [authorize] step 9: redirecting to client  uri=http://localhost/callback
+2026-02-13T16:39:24-0800 INFO     test_oauth_pkce_flow  CLIENT: received authorization code from redirect
+INFO     test_oauth_pkce_flow:test_oauth_pkce_flow.py:95 CLIENT: received authorization code from redirect
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 1: received token exchange request  client_id=test-client-id grant_type=authorization_code
+INFO     app.api.oauth:oauth.py:174 PKCE FLOW [token] step 1: received token exchange request  client_id=test-client-id grant_type=authorization_code
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 2: grant_type valid  ✓
+INFO     app.api.oauth:oauth.py:188 PKCE FLOW [token] step 2: grant_type valid  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 3: authorization code found  ✓
+INFO     app.api.oauth:oauth.py:199 PKCE FLOW [token] step 3: authorization code found  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 4: code not expired  ✓
+INFO     app.api.oauth:oauth.py:209 PKCE FLOW [token] step 4: code not expired  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 5: code consumed (single-use enforced)  ✓
+INFO     app.api.oauth:oauth.py:223 PKCE FLOW [token] step 5: code consumed (single-use enforced)  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 6: client_id matches  ✓
+INFO     app.api.oauth:oauth.py:230 PKCE FLOW [token] step 6: client_id matches  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 7: redirect_uri matches  ✓
+INFO     app.api.oauth:oauth.py:237 PKCE FLOW [token] step 7: redirect_uri matches  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 8: PKCE verified - client proved possession of verifier  ✓
+INFO     app.api.oauth:oauth.py:249 PKCE FLOW [token] step 8: PKCE verified - client proved possession of verifier  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 9: access token issued  user=test-user expires_in=30 min  ✓
+INFO     app.api.oauth:oauth.py:267 PKCE FLOW [token] step 9: access token issued  user=test-user expires_in=30 min  ✓
+2026-02-13T16:39:24-0800 INFO     test_oauth_pkce_flow  CLIENT: received access token
+INFO     test_oauth_pkce_flow:test_oauth_pkce_flow.py:127 CLIENT: received access token
+2026-02-13T16:39:24-0800 INFO     test_oauth_pkce_flow  CLIENT: accessed protected resource with OAuth token  ✓
+INFO     test_oauth_pkce_flow:test_oauth_pkce_flow.py:143 CLIENT: accessed protected resource with OAuth token  ✓
+PASSED
+tests/api/test_oauth_pkce_flow.py::test_replay_rejected 2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 1: received authorization request  client_id=test-client-id redirect_uri=http://localhost/callback scope=openid
+
+-------------------------------- live log call ---------------------------------
+INFO     app.api.oauth:oauth.py:69 PKCE FLOW [authorize] step 1: received authorization request  client_id=test-client-id redirect_uri=http://localhost/callback scope=openid
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 2: response_type=code  ✓
+INFO     app.api.oauth:oauth.py:81 PKCE FLOW [authorize] step 2: response_type=code  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 3: client_id recognized  ✓
+INFO     app.api.oauth:oauth.py:88 PKCE FLOW [authorize] step 3: client_id recognized  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 4: redirect_uri matches registration  ✓
+INFO     app.api.oauth:oauth.py:97 PKCE FLOW [authorize] step 4: redirect_uri matches registration  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 5: PKCE params valid (S256)  ✓
+INFO     app.api.oauth:oauth.py:108 PKCE FLOW [authorize] step 5: PKCE params valid (S256)  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 6: user authenticated  user_id=test-user  (stub)
+INFO     app.api.oauth:oauth.py:115 PKCE FLOW [authorize] step 6: user authenticated  user_id=test-user  (stub)
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 7: authorization code generated  (hash=a628e05f4c2b…)
+INFO     app.api.oauth:oauth.py:126 PKCE FLOW [authorize] step 7: authorization code generated  (hash=a628e05f4c2b…)
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 8: code metadata stored  expires_at=1771030164
+INFO     app.api.oauth:oauth.py:146 PKCE FLOW [authorize] step 8: code metadata stored  expires_at=1771030164
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 9: redirecting to client  uri=http://localhost/callback
+INFO     app.api.oauth:oauth.py:155 PKCE FLOW [authorize] step 9: redirecting to client  uri=http://localhost/callback
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 1: received token exchange request  client_id=test-client-id grant_type=authorization_code
+INFO     app.api.oauth:oauth.py:174 PKCE FLOW [token] step 1: received token exchange request  client_id=test-client-id grant_type=authorization_code
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 2: grant_type valid  ✓
+INFO     app.api.oauth:oauth.py:188 PKCE FLOW [token] step 2: grant_type valid  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 3: authorization code found  ✓
+INFO     app.api.oauth:oauth.py:199 PKCE FLOW [token] step 3: authorization code found  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 4: code not expired  ✓
+INFO     app.api.oauth:oauth.py:209 PKCE FLOW [token] step 4: code not expired  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 5: code consumed (single-use enforced)  ✓
+INFO     app.api.oauth:oauth.py:223 PKCE FLOW [token] step 5: code consumed (single-use enforced)  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 6: client_id matches  ✓
+INFO     app.api.oauth:oauth.py:230 PKCE FLOW [token] step 6: client_id matches  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 7: redirect_uri matches  ✓
+INFO     app.api.oauth:oauth.py:237 PKCE FLOW [token] step 7: redirect_uri matches  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 8: PKCE verified - client proved possession of verifier  ✓
+INFO     app.api.oauth:oauth.py:249 PKCE FLOW [token] step 8: PKCE verified - client proved possession of verifier  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 9: access token issued  user=test-user expires_in=30 min  ✓
+INFO     app.api.oauth:oauth.py:267 PKCE FLOW [token] step 9: access token issued  user=test-user expires_in=30 min  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 1: received token exchange request  client_id=test-client-id grant_type=authorization_code
+INFO     app.api.oauth:oauth.py:174 PKCE FLOW [token] step 1: received token exchange request  client_id=test-client-id grant_type=authorization_code
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 2: grant_type valid  ✓
+INFO     app.api.oauth:oauth.py:188 PKCE FLOW [token] step 2: grant_type valid  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 3: authorization code found  ✓
+INFO     app.api.oauth:oauth.py:199 PKCE FLOW [token] step 3: authorization code found  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 4: code not expired  ✓
+INFO     app.api.oauth:oauth.py:209 PKCE FLOW [token] step 4: code not expired  ✓
+2026-02-13T16:39:24-0800 WARNING  app.api.oauth  PKCE FLOW [token] FAIL: authorization code already used (replay attempt)  [oauth.py:217]
+WARNING  app.api.oauth:oauth.py:217 PKCE FLOW [token] FAIL: authorization code already used (replay attempt)
+PASSED
+tests/api/test_oauth_pkce_flow.py::test_wrong_verifier_rejected 2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 1: received authorization request  client_id=test-client-id redirect_uri=http://localhost/callback scope=openid
+
+-------------------------------- live log call ---------------------------------
+INFO     app.api.oauth:oauth.py:69 PKCE FLOW [authorize] step 1: received authorization request  client_id=test-client-id redirect_uri=http://localhost/callback scope=openid
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 2: response_type=code  ✓
+INFO     app.api.oauth:oauth.py:81 PKCE FLOW [authorize] step 2: response_type=code  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 3: client_id recognized  ✓
+INFO     app.api.oauth:oauth.py:88 PKCE FLOW [authorize] step 3: client_id recognized  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 4: redirect_uri matches registration  ✓
+INFO     app.api.oauth:oauth.py:97 PKCE FLOW [authorize] step 4: redirect_uri matches registration  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 5: PKCE params valid (S256)  ✓
+INFO     app.api.oauth:oauth.py:108 PKCE FLOW [authorize] step 5: PKCE params valid (S256)  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 6: user authenticated  user_id=test-user  (stub)
+INFO     app.api.oauth:oauth.py:115 PKCE FLOW [authorize] step 6: user authenticated  user_id=test-user  (stub)
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 7: authorization code generated  (hash=a544621c9610…)
+INFO     app.api.oauth:oauth.py:126 PKCE FLOW [authorize] step 7: authorization code generated  (hash=a544621c9610…)
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 8: code metadata stored  expires_at=1771030164
+INFO     app.api.oauth:oauth.py:146 PKCE FLOW [authorize] step 8: code metadata stored  expires_at=1771030164
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [authorize] step 9: redirecting to client  uri=http://localhost/callback
+INFO     app.api.oauth:oauth.py:155 PKCE FLOW [authorize] step 9: redirecting to client  uri=http://localhost/callback
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 1: received token exchange request  client_id=test-client-id grant_type=authorization_code
+INFO     app.api.oauth:oauth.py:174 PKCE FLOW [token] step 1: received token exchange request  client_id=test-client-id grant_type=authorization_code
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 2: grant_type valid  ✓
+INFO     app.api.oauth:oauth.py:188 PKCE FLOW [token] step 2: grant_type valid  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 3: authorization code found  ✓
+INFO     app.api.oauth:oauth.py:199 PKCE FLOW [token] step 3: authorization code found  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 4: code not expired  ✓
+INFO     app.api.oauth:oauth.py:209 PKCE FLOW [token] step 4: code not expired  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 5: code consumed (single-use enforced)  ✓
+INFO     app.api.oauth:oauth.py:223 PKCE FLOW [token] step 5: code consumed (single-use enforced)  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 6: client_id matches  ✓
+INFO     app.api.oauth:oauth.py:230 PKCE FLOW [token] step 6: client_id matches  ✓
+2026-02-13T16:39:24-0800 INFO     app.api.oauth  PKCE FLOW [token] step 7: redirect_uri matches  ✓
+INFO     app.api.oauth:oauth.py:237 PKCE FLOW [token] step 7: redirect_uri matches  ✓
+2026-02-13T16:39:24-0800 WARNING  app.api.oauth  PKCE FLOW [token] FAIL: PKCE verification failed  [oauth.py:247]
+WARNING  app.api.oauth:oauth.py:247 PKCE FLOW [token] FAIL: PKCE verification failed
+PASSED
+
+============================== 3 passed in 0.02s ===============================
