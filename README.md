@@ -162,7 +162,7 @@ Start Docker daemon:  Run the MacOS Docker app in: *Applications directory*
 
 ```bash
 docker build -f docker/Dockerfile --target runtime -t auth-service:dev .
-docker run --rm -p 8000:8000 --env-file .env auth-service:dev
+docker run --rm --name auth-service-dev -p 8000:8000 --env-file .env auth-service:dev
 ```
 
 ### Terminal 2 - Test Environment
@@ -241,7 +241,7 @@ the test environment for config and logging purposes.
 
 ```bash
 docker build -f docker/Dockerfile --target runtime -t auth-service:test .
-docker run --rm -p 8000:8000 --env-file .env auth-service:test
+docker run --rm --name auth-service-test -p 8000:8000 --env-file .env auth-service:test
 ```
 
 ### Terminal 2 - Run the Test Suite in Docker
@@ -283,7 +283,7 @@ In **.env**, set: `APP_ENV=prod`, `LOG_LEVEL=info`
 
 ```bash
 docker build -f docker/Dockerfile --target runtime -t auth-service:prod .
-docker run --rm -p 8000:8000 --env-file .env auth-service:prod
+docker run --rm --name auth-service-prod -p 8000:8000 --env-file .env auth-service:prod
 ```
 
 ### Verify Production
@@ -337,3 +337,48 @@ This reduces the attack surface of the production image.
 operations, WARNING for recoverable issues, ERROR for failures). Never
 log passwords, tokens, or secrets. Use `LOG_LEVEL` to control
 verbosity per environment.
+
+## Docker Cleanup
+
+Stop and remove a running single container:
+
+```bash
+docker stop auth-service-dev
+docker rm auth-service-dev
+```
+
+Remove all stopped containers:
+
+```bash
+docker container prune -f
+```
+
+Remove auth-service images:
+
+```bash
+docker rmi auth-service:dev auth-service:test auth-service:prod
+```
+
+Remove unused images (dangling layers from previous builds):
+
+```bash
+docker image prune -f
+```
+
+Remove unused volumes:
+
+```bash
+docker volume prune -f
+```
+
+Remove everything — all stopped containers, unused images, networks,
+and volumes. ONLY use this when you want a clean slate:
+
+**Warning:** `docker system prune -a --volumes` removes *all* unused
+images (not just dangling ones) and all volumes not attached to a
+running container. Only run this if you don't need cached layers or
+data from other projects.
+
+```bash
+docker system prune -a --volumes -f
+```
