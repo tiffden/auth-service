@@ -13,5 +13,7 @@ format:
 test:
 	python -m pytest -q
 
-ci: lint format test
+test-oauth-flow:
+	pytest tests/api/test_oauth_pkce_flow.py -s --log-cli-level=INFO 
 
+ci: lint format test

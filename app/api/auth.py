@@ -16,8 +16,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["auth"])
 
-# Endpoint Logic - defines POST /auth/token and require_user token dependency
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 TOKEN_TTL_MIN = 30
 TOKEN_SIGNING_SECRET = os.getenv("TOKEN_SIGNING_SECRET", "dev-only-secret-change-me")

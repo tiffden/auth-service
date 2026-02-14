@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from app.api.auth import router as auth_router
 from app.api.health import router as health_router
+from app.api.oauth import router as oauth_router
 from app.api.users import router as users_router
 from app.core.config import SETTINGS
 from app.core.logging import setup_logging
@@ -25,6 +26,7 @@ app = FastAPI(
 
 app.include_router(health_router)
 app.include_router(auth_router)
+app.include_router(oauth_router)
 app.include_router(users_router)
 
 logger.info(
