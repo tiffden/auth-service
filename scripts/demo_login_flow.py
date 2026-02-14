@@ -1,9 +1,3 @@
-"""Demo: walk the login → OAuth PKCE flow using FastAPI TestClient.
-
-Run with:
-    python scripts/demo_login_flow.py
-"""
-
 from __future__ import annotations
 
 from urllib.parse import parse_qs, urlparse
@@ -16,6 +10,21 @@ from app.main import app
 from app.models.oauth_client import OAuthClient
 from app.models.user import User
 from app.services import auth_service, pkce_service
+
+# Demo - OAuth PKCE flow using FastAPI TestClient
+#
+# Run with:    python scripts/demo_login_flow.py
+#
+# The full flow end-to-end in 8 steps:
+#
+# GET /login → 200 (form HTML)
+# POST /login (bad creds) → 401 (rejected)
+# POST /login (good creds) → 200 (session cookie set)
+# GET /oauth/authorize (no session) → 302 to /login?next=...
+# GET /oauth/authorize (with session) → 302 to callback with code + state
+# POST /oauth/token → 200 (JWT access token, 900s TTL)
+# GET /users (bearer) → 200 (protected resource accessed)
+# POST /oauth/token (replay) → 400 (code already used)
 
 CLIENT_ID = "demo-client"
 REDIRECT_URI = "http://localhost/callback"
