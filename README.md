@@ -196,11 +196,7 @@ git push -u origin feature/short-description
 
 Open a pull request on GitHub for review before merging to `main`:
 
-```bash
-gh pr create --title "feat: Short description" --body "Summary of changes"
-```
-
-Or create the PR through the GitHub web UI. Once CI passes and the PR
+Create the PR through the GitHub web UI. Once CI passes and the PR
 is approved:
 
 1. Merge the PR on GitHub (prefer "Squash and merge" for a clean history)
@@ -210,7 +206,12 @@ is approved:
 ```bash
 git checkout main
 git pull origin main
-git branch -d feature/short-description
+```
+
+If continuing with a new feature, create your new branch
+
+```bash
+git checkout -b my-new-feature
 ```
 
 ## 2) Staging/Test Environment
