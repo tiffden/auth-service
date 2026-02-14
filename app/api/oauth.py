@@ -11,7 +11,9 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from app.api.dependencies import get_interactive_user
+from app.core.config import SETTINGS
 from app.models.authorization_code import AuthorizationCode
+from app.models.oauth_client import OAuthClient
 from app.repos.auth_code_repo import InMemoryAuthCodeRepo
 from app.repos.oauth_client_repo import InMemoryOAuthClientRepo
 from app.services import pkce_service, token_service
@@ -46,6 +48,13 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     expires_in: int
+
+
+class ClientRegistration(BaseModel):
+    client_id: str
+    redirect_uris: list[str]
+    is_public: bool = True
+    allowed_scopes: list[str] = ["openid"]
 
 
 # ========================== GET /oauth/authorize ==========================
@@ -276,3 +285,24 @@ def exchange_token(
         token_type="bearer",
         expires_in=token_service.ACCESS_TOKEN_TTL_MIN * 60,
     )
+
+
+# ========================== POST /oauth/clients =============================
+# Register a public OAuth client. Only available in dev/test environments.
+
+
+@router.post("/oauth/clients", status_code=status.HTTP_201_CREATED)
+def register_client(body: ClientRegistration) -> dict:
+    if SETTINGS.is_prod:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+
+    client_repo.register(
+        OAuthClient.new(
+            client_id=body.client_id,
+            redirect_uris=tuple(body.redirect_uris),
+            is_public=body.is_public,
+            allowed_scopes=frozenset(body.allowed_scopes),
+        )
+    )
+    logger.info("Registered OAuth client  client_id=%s", body.client_id)
+    return {"client_id": body.client_id, "registered": True}
