@@ -1,0 +1,595 @@
+Week 4-8: Platform Engineering Fundamentals (Core Responsibilities)
+
+These weeks map to the job's "designing scalable, secure platforms",
+"API/architecture ownership", "reliability, maintainability", and
+"enterprise ready" requirements.
+
+Data store: PostgreSQL is the primary store for all relational entities.
+
+---
+
+Week 4 -- Data Modeling & Platform APIs
+
+Job alignment: Architectural abstractions + learner data models
+Learn
+  - Modeling user/learner state with tenant isolation (org-scoped)
+  - Learning pathways as structured data (nodes, edges, constraints)
+  - API versioning and schema evolution (expand/contract, idempotency)
+  - Event sourcing for progress (append-only log + projection)
+Do
+  - Design ER model: users, orgs, courses, assessments, progress,
+    credentials, AI interaction logs
+  - Write sequence diagrams for 4 core flows (enroll, complete item,
+    assess, credential issuance)
+Deliverable
+  - ER diagram with legend (authored content vs high-volume vs audit)
+  - Sequence diagrams (4)
+  - Data store map: what lives where and why (Postgres now; Redis,
+    object store, vector store introduced in later weeks)
+  - Schema evolution notes
+Why it matters
+  You'll define the objects and APIs everything else hangs off.
+  The JD says "learner data models" and "enterprise ready" -- both
+  start here.
+
+---
+
+Week 5 -- Identity & Access Architectures
+
+Job alignment: "Authentication/SSO" + "security, infrastructure teams"
+Learn
+  - OAuth 2.1 + PKCE (you built this in Week 3)
+  - RBAC -> ownership checks -> ABAC progression
+  - Enterprise SSO: SAML 2.0, OIDC federation
+  - Multi-tenant identity: org-scoped roles, permission propagation
+Do
+  - Build modular auth layer supporting: admin, instructor, learner
+  - Implement Principal with org context (user_id, roles, org_id)
+  - Add ownership-based access (users edit own profile, admins edit any)
+Deliverable
+  - Auth model with diagrams + threat considerations
+  - RBAC test matrix (table-driven, you started this in Week 3)
+Why it matters
+  The JD explicitly cites "authentication/SSO" and "interface with
+  security and infrastructure teams." This is your auth-service
+  becoming enterprise-grade.
+
+---
+
+Week 6 -- Scalable Backend Patterns
+
+Job alignment: Platform resiliency + scaling under load
+Learn
+  - Horizontal scaling patterns (stateless API, shared-nothing)
+  - UI vs API vs worker separation
+  - Rate limiting and throttling strategies
+  - Caching patterns: read-through, write-behind, cache invalidation
+Do
+  - Add rate limiting (token bucket per org/user)
+  - Introduce Redis for: session state, rate-limit counters,
+    course_progress projection cache, token blacklists
+  - Add background worker pattern (task queue for grading, credential
+    issuance)
+Deliverable
+  - Architecture diagram with failure modes annotated
+  - Load test results showing rate limiting behavior
+Data store introduced: Redis (cache, session, rate limits)
+Why it matters
+  The JD says "platforms that serve many concurrent users reliably."
+  Redis is the natural tool for the hot-path reads and rate limits
+  that make that possible.
+
+---
+
+Week 7 -- Observability, SLOs & Cloud Operations
+
+Job alignment: "Reliable and observable platform infrastructure" +
+              production readiness
+Learn
+  - Metrics vs logs vs traces (the three pillars)
+  - SLI/SLO creation and alerting best practices
+  - Managed infra (GCP/AWS), IaC (Terraform/CloudFormation)
+  - Deployment pipelines: blue/green, canary rollout
+Do
+  - Define SLOs for API latency, error rates, queue processing time
+  - Deploy platform with blue/green or canary strategy
+  - Set up structured logging + metrics collection
+Deliverable
+  - SLO dashboard + alert runbooks
+  - Deployment graph + rollback plan
+Why it matters
+  Combined from original Weeks 7-8. These are expected competencies
+  for a senior engineer -- important to cover but not the
+  differentiator for this role. One focused week covers both.
+
+---
+
+Week 8 -- AI as Core Runtime (the Differentiator)
+
+Job alignment: "AI is the delivery mechanism, not just the subject"
+Learn
+  - LLM API patterns: latency, cost, token budgets, streaming
+  - Prompt engineering for education: tutoring, Socratic method,
+    scaffolded hints
+  - AI session architecture: how a tutoring conversation maps to
+    ai_session + ai_interaction tables
+  - Content storage: object store for AI-generated content (S3),
+    content_hash referencing
+Do
+  - Build a prompt dispatch service with versioned prompt templates
+  - Implement ai_session / ai_interaction logging
+  - Store conversation content in object storage, reference by hash
+    in Postgres
+Deliverable
+  - Working tutoring endpoint that uses Claude API
+  - Prompt version registry with A/B comparison capability
+  - AI interaction data flowing into the logging tables from Week 4
+Data store introduced: Object store (S3) for AI conversation content,
+  prompt templates, generated artifacts
+Why it matters
+  The JD says "AI-augmented pipelines" and "AI capabilities as core
+  infrastructure." This week makes AI a first-class runtime, not a
+  feature bolted on later. Moving this to Week 8 (from original
+  Week 9) means every subsequent week builds on AI as a given.
+
+---
+
+Week 9-14: AI-Native Education Platform
+
+These weeks build on Week 8's AI runtime to deliver the capabilities
+that make this role unique: AI-driven assessment, adaptive learning,
+human oversight, and the tooling that lets non-engineers operate it.
+
+---
+
+Week 9 -- Safety, Guardrails & Output Constraints
+
+Job alignment: "Safe and reliable AI output" + Anthropic's safety DNA
+Learn
+  - Prompt injection vectors and defenses
+  - Output schema enforcement (structured outputs, JSON mode)
+  - Policy filters: content safety, PII detection, topic boundaries
+  - Educational safety: preventing AI from giving answers vs teaching
+Do
+  - Add input/output guardrail middleware to the AI pipeline
+  - Build automated safety test suite (adversarial prompts)
+  - Implement confidence scoring on AI responses
+Deliverable
+  - Safety test suite + documentation
+  - Guardrail config that non-engineers can update (YAML/JSON policy)
+Why it matters
+  Safety is Anthropic's core identity. The JD says "interface with
+  security teams" and the role requires judgment about what AI should
+  and shouldn't do in educational contexts.
+
+---
+
+Week 10 -- AI-Evaluated Assessment
+
+Job alignment: "Assessments respond to what a learner actually
+              understands" + "AI-evaluated demonstrations of skill"
+Learn
+  - AI grading patterns: rubric-based, comparative, multi-pass
+  - Confidence thresholds: when AI grades vs escalates to human
+  - Scoring consistency: how to measure and improve inter-rater
+    reliability between AI and human graders
+Do
+  - Build AI grading pipeline for short-answer and code assessments
+  - Implement confidence threshold routing (auto-grade vs human queue)
+  - Add ai_feedback table for grader quality tracking
+Deliverable
+  - Working AI grader with configurable rubrics
+  - Confidence distribution analysis showing escalation rates
+Why it matters
+  The JD says "credentialing systems verify genuine competence rather
+  than course completion." AI-evaluated assessment is how you get
+  there at scale.
+
+---
+
+Week 11 -- Human-in-the-Loop & Feedback Loops
+
+Job alignment: "Blend automation with human oversight"
+Learn
+  - Escalation patterns: confidence-based, random sample, learner flag
+  - Review queue design: batching, priority, SLA tracking
+  - Feedback loop: human corrections improve AI grading over time
+  - When automation helps vs when it harms learning outcomes
+Do
+  - Build instructor review queue for escalated assessments
+  - Implement feedback loop: human grade corrections stored and
+    queryable for prompt tuning
+  - Add audit trail: who reviewed, when, what changed
+Deliverable
+  - Review queue with SLA metrics
+  - Feedback loop data pipeline diagram
+  - Sample showing how human corrections would inform prompt updates
+Why it matters
+  The JD elevates this: "blend automation with human oversight." For
+  education, this is the trust layer -- learners and institutions need
+  to know a human can intervene.
+
+---
+
+Week 12 -- Adaptive Learning & Personalization
+
+Job alignment: "Adaptive paths, competency-based progression" +
+              "content served and adapted in real time"
+Learn
+  - Mastery-based progression vs time-based progression
+  - Knowledge graph: prerequisite mapping, skill dependencies
+  - Semantic similarity: matching learner struggles to relevant content
+  - Recommendation patterns: collaborative filtering vs content-based
+Do
+  - Implement competency gates (must demonstrate skill X before
+    progressing to module Y)
+  - Add vector embeddings for course content and learner questions
+  - Build "related content" recommendations using semantic search
+  - Implement adaptive path selection based on assessment results
+Deliverable
+  - Working adaptive path that adjusts based on assessment performance
+  - Semantic search demo: "learner asks question -> system finds
+    relevant module"
+Data store introduced: Vector store (pgvector or dedicated) for
+  content embeddings, semantic search, learner question matching
+Why it matters
+  The JD says "how content is served and adapted in real time" and
+  "genuinely new kinds of empowering learning experiences." This is
+  the week where the platform stops being a course player and becomes
+  an adaptive learning system.
+
+---
+
+Week 13 -- Platform for Non-Engineers
+
+Job alignment: "Platform abstractions that let non-engineers configure,
+              extend, and experiment without engineering bottlenecks"
+Learn
+  - Config-driven systems: content pipelines, rule engines, template
+    systems
+  - Admin UI patterns: CRUD builders, form generators, preview modes
+  - Self-service course authoring: what educators need to launch a
+    course without an engineering ticket
+  - Feature flags and experimentation: A/B testing learning approaches
+Do
+  - Build config-driven course builder (JSON/YAML course definitions
+    that non-engineers can edit)
+  - Implement preview mode: "see what the learner sees" for authors
+  - Add admin dashboard for monitoring learner progress per org
+Deliverable
+  - Working course authoring flow (create, preview, publish) that
+    requires zero code changes
+  - Admin dashboard with org-scoped learner analytics
+Why it matters
+  This was missing from the original syllabus. The JD repeats this
+  theme: "let non-engineers configure, extend, and experiment." A
+  small education team operating with the reach of one ten times
+  larger -- that's only possible if the platform is self-service.
+
+---
+
+Week 14 -- AI Observability & Cost Management
+
+Job alignment: "Metrics, logging, model performance" + "responsible
+              use of resources"
+Learn
+  - AI-specific observability: latency distributions, token usage,
+    model version tracking
+  - Quality metrics: feedback ratings correlated with model_id,
+    session_type, and assessment outcomes
+  - Token budgeting: per-org, per-course, per-session limits
+  - Cache strategies for AI: prompt result caching, embedding caching
+  - Fallback patterns: model degradation, timeout handling
+Do
+  - Build AI performance dashboard correlating cost, latency, and
+    quality (using ai_interaction + ai_feedback data from Week 8)
+  - Implement per-org token budget enforcement
+  - Add cost attribution: tokens per session, per course, per org
+Deliverable
+  - AI observability dashboard
+  - Cost model with enforcement policies
+  - Alert thresholds for quality degradation
+Why it matters
+  Combined from original Weeks 13-14. AI cost and quality are two
+  sides of the same coin -- you monitor them together.
+
+---
+
+Week 15-19: Education Domain Expertise
+
+These weeks map to "education experience and pedagogy fluency",
+adaptive learning principles, enterprise integrations, and the
+compliance requirements that make platforms trustworthy.
+
+---
+
+Week 15 -- Learning Science & UX
+
+Job alignment: "Genuine passion for education" + "how people learn"
+Learn
+  - Bloom's taxonomy: knowledge, comprehension, application, analysis,
+    synthesis, evaluation
+  - Formative vs summative assessment: when and why
+  - Spaced repetition, retrieval practice, interleaving
+  - Zone of proximal development: how adaptive systems apply it
+Do
+  - Tag all course content with Bloom's level
+  - Design micro-learning paths that apply spaced repetition
+  - Map assessment items to specific learning objectives
+Deliverable
+  - Learning objective taxonomy for sample course
+  - UX flows showing learner journey through adaptive path
+Why it matters
+  The JD says "genuine passion for education" and "you think about
+  how people learn." This week builds the vocabulary and mental
+  models to make product-level decisions about the learning
+  experience.
+
+---
+
+Week 16 -- Assessment & Credentialing
+
+Job alignment: "Credentialing systems verify genuine competence"
+Learn
+  - Rubric design: analytic vs holistic, inter-rater reliability
+  - Competency-based credentialing vs completion-based
+  - Open Badges v3 spec (W3C Verifiable Credentials)
+  - Credential verification: public endpoints, revocation lists
+Do
+  - Build graded + ungraded assessment types
+  - Implement credential issuance pipeline (from Week 4 sequence
+    diagram)
+  - Add OBv3 JSON-LD export endpoint: GET /v1/credentials/{id}/verify
+  - Map credential/user_credential tables to OBv3 Achievement +
+    AchievementCredential (see data-model-notes-week4.md)
+Deliverable
+  - Working credential pipeline: pass assessment -> earn badge
+  - OBv3-compliant badge export
+  - Verification endpoint
+Why it matters
+  The JD lists "badging standards (Open Badges)" as a strong
+  candidate signal and "credentialing systems verify genuine
+  competence" as a core responsibility.
+
+---
+
+Week 17 -- Enterprise Interfaces & Standards
+
+Job alignment: "Integrate with existing institutional tooling"
+Learn
+  - SAML 2.0: SP-initiated vs IdP-initiated flows
+  - LTI 1.3: tool launch, deep linking, grade passback
+  - SCORM/xAPI basics: when they matter, when they don't
+  - API contracts for third-party clients: versioning, rate limits,
+    webhooks
+Do
+  - Build SAML SP adapter (mock IdP for testing)
+  - Implement LTI 1.3 tool launch flow
+  - Design webhook system for progress events (org subscribes to
+    learner completion events)
+Deliverable
+  - Integration suite with test harnesses
+  - API documentation for external consumers
+Why it matters
+  Enterprise adoption requires compatibility with existing
+  institutional tooling. The JD explicitly lists SAML, OAuth, LTI.
+
+---
+
+Week 18 -- Privacy, Compliance & Data Governance
+
+Job alignment: "Interface with security and infrastructure teams" +
+              enterprise data requirements
+Learn
+  - FERPA obligations and educational data privacy
+  - Data minimization: what to store, what to hash, what to discard
+  - Data residency: org-scoped storage locations
+  - AI-specific: conversation data retention, model input/output logging
+    policies, right to erasure for AI interactions
+Do
+  - Write data flow documentation showing PII paths
+  - Implement data retention policies (auto-purge ai_interaction
+    content after N days, keep hashes)
+  - Add data export endpoint (GDPR/FERPA: "give me my data")
+Deliverable
+  - Data handling policy document
+  - Data flow diagrams with PII annotations
+  - Working data export for user's own records
+Why it matters
+  The JD says "interface with security and infrastructure teams."
+  Handling learner data responsibly is non-negotiable, especially
+  when AI interactions are in the mix.
+
+---
+
+Week 19 -- System Design & Tradeoffs
+
+Job alignment: "Technical vision and architectural leadership"
+Learn
+  - Full system design document structure
+  - Trade-off analysis: build vs buy, monolith vs services,
+    consistency vs availability
+  - Capacity planning: projecting from current data model to
+    production scale
+Do
+  - Write a complete system design doc for the education platform
+  - Include trade-off tables with decisions and rationale
+  - Map every component to a JD responsibility
+Deliverable
+  - Final architecture proposal + rationale
+  - Component diagram showing all services, stores, and data flows
+Why it matters
+  Interviewers evaluate architectural judgment. This document is
+  your portfolio centerpiece.
+
+---
+
+Week 20-26: Leadership, Strategy & Interview Readiness
+
+These final weeks map to "architecture leadership", "cross-team
+communication", "strategic ownership", and "shaping what's possible."
+
+---
+
+Week 20 -- Cross-Functional Alignment
+
+Job alignment: "Work across product, research, and infrastructure"
+Do
+  - Draft stakeholder requirement map (education team, security,
+    infrastructure, devrel)
+  - Translate pedagogical goals into technical deliverables
+  - Write an RFC for a proposed feature (practice the process)
+Deliverable
+  - Collaboration matrix + responsibility RACI
+  - Sample RFC with feedback incorporated
+Why it matters
+  The JD says "interface closely with security, infrastructure, and
+  data teams" and "partner with trainers and educators." Leadership
+  is coordination, not just code.
+
+---
+
+Week 21 -- Product Thinking & "What to Build"
+
+Job alignment: "Shaping what's possible, not just building what's
+              requested" + "product-level decisions"
+Learn
+  - How to evaluate what to build vs what to skip
+  - Platform thinking: features that enable other features
+  - Measuring educational outcomes (not just engagement)
+Do
+  - Write a product vision doc: "what should AI-native education
+    look like in 2 years?"
+  - Identify 3 features the platform should NOT build (and why)
+  - Design a metric framework: learning outcomes, not just DAU
+Deliverable
+  - Product vision document
+  - Anti-feature analysis with rationale
+  - Outcome metrics proposal
+Why it matters
+  This was implicit in the original syllabus but the JD makes it
+  explicit: "you'll make platform decisions that are deeply
+  educational." The role is not "build to spec" -- it's "determine
+  what to build."
+
+---
+
+Week 22 -- Failure & Incident Playbooks
+
+Job alignment: "Ensure production resilience"
+Do
+  - Build incident response procedures for:
+    - AI pipeline degradation (model timeout, quality drop)
+    - Assessment grading failure mid-session
+    - Credential issuance pipeline stuck
+    - Multi-tenant data leak scenario
+  - Write post-mortems for simulated outages
+Deliverable
+  - On-call runbooks + escalation procedures
+  - Retrospective templates
+Why it matters
+  Production readiness means predictable operations when things go
+  wrong. AI-specific failures (model degradation, hallucination in
+  grading) are a new category most playbooks don't cover.
+
+---
+
+Week 23 -- Open Artifacts & Public Signal
+
+Job alignment: "Demonstrate credible engineering background"
+Do
+  - Polish repositories (README, architecture docs, clean history)
+  - Write detailed walkthroughs of key design decisions
+  - Publish 1-2 design vision posts (blog, GitHub, etc.)
+  - Record self-narrated demo of the platform
+Deliverable
+  - Public portfolio with narrated walkthrough
+  - At least one published technical writing piece
+
+---
+
+Week 24 -- Mock Interviews (Systems Design)
+
+Job alignment: Interview readiness
+Do
+  - Practice system design problems:
+    - "Design an AI-native learning platform" (your project)
+    - "Design a real-time adaptive assessment system"
+    - "Design a multi-tenant credentialing service"
+  - Practice explaining tradeoffs under time pressure
+
+---
+
+Week 25 -- Mock Interviews (Behavioral + Safety)
+
+Job alignment: Domain fluency + Anthropic values alignment
+Do
+  - Practice behavioral questions:
+    - "Tell me about a time you shaped a product direction"
+    - "How do you balance speed with safety?"
+    - "Describe a system you built for non-technical users"
+  - Practice safety + ethical AI questions:
+    - "When should AI NOT grade an assessment?"
+    - "How do you handle AI hallucinations in education?"
+
+---
+
+Week 26 -- Tailored Job Prep
+
+Job alignment: Interview readiness + targeted pitch
+Do
+  - Tailor resume for:
+    - platform leadership (zero to production at scale)
+    - education technology impact
+    - AI-native system design
+    - safety-aligned engineering
+  - Prepare "why Anthropic" narrative connecting your project
+    to their mission
+  - Prepare questions to ask interviewers that demonstrate
+    domain depth
+
+---
+
+What You'll Have by Week 26
+
+  A scalable, AI-native education platform (not a toy -- a working
+    system with auth, multi-tenancy, AI tutoring, adaptive paths,
+    credentialing, and enterprise integrations)
+  Public artifacts demonstrating engineering leadership and
+    product thinking
+  Domain fluency in pedagogy, assessment design, and learning
+    science
+  Safety-aligned AI engineering practices with guardrails,
+    human-in-the-loop, and observability
+  Production deployment with reliability tooling, SLOs, and
+    incident playbooks
+  Self-service platform capabilities that non-engineers can
+    configure and operate
+  Enterprise readiness: SSO, multi-tenancy, Open Badges,
+    LTI, compliance
+
+This aligns directly to the core responsibilities and priorities
+in the Anthropic Senior Education Platform Engineer job description.
+
+---
+
+Changes from original syllabus
+
+  Weeks 7-8 merged into Week 7 (observability + cloud ops are expected
+    senior skills, not differentiators -- one focused week)
+  AI runtime moved to Week 8 (from Week 9) so every subsequent week
+    builds on AI as a given
+  Week 13 added: "Platform for Non-Engineers" (was completely missing;
+    the JD repeats this theme)
+  Week 21 added: "Product Thinking" (the JD says "shaping what's
+    possible, not just building" -- this needs its own week)
+  Weeks 13-14 merged into Week 14 (AI observability + cost are two
+    sides of the same coin)
+  Interview prep expanded to 3 weeks (systems design, behavioral/safety,
+    and tailored prep -- each deserves focused practice)
+  Data stores distributed across weeks where naturally motivated:
+    - PostgreSQL: Week 4 (data modeling)
+    - Redis: Week 6 (scaling + caching)
+    - Object store (S3): Week 8 (AI conversation storage)
+    - Vector store: Week 12 (adaptive learning + semantic search)
+  Total: 26 weeks (expanded from 24 to accommodate the two added weeks)
