@@ -1,197 +1,150 @@
+"""Token validation tests — exercise the require_user() dependency.
+
+These test that garbage, expired, and tampered JWT tokens are rejected,
+and valid ES256 tokens pass through.
+"""
+
 from __future__ import annotations
 
-import hashlib
-import hmac
 import logging
+import uuid
 from datetime import UTC, datetime, timedelta
 
+import jwt as pyjwt
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.auth import TOKEN_SIGNING_SECRET
-
-
-def test_auth_token_rejects_bad_creds(client: TestClient) -> None:
-    resp = client.post(
-        "/auth/token",
-        data={"username": "tee", "password": "wrong"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    assert resp.status_code == 401
-
-
-def test_auth_token_accepts_good_creds_and_returns_token_and_expiry(
-    client: TestClient,
-) -> None:
-    resp = client.post(
-        "/auth/token",
-        data={"username": "tee", "password": "password"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    assert resp.status_code == 200
-    payload = resp.json()
-    assert payload["token_type"] == "bearer"
-    assert payload["access_token"].startswith("user:tee|exp:")
-    assert "expires_at" in payload
-    expires_at = datetime.fromisoformat(payload["expires_at"])
-    assert expires_at.tzinfo in (UTC, None)
-
+from app.services import token_service
 
 # ---- invalid / missing token cases ----
 
 
-def test_protected_endpoint_rejects_garbage_token(client: TestClient) -> None:
+def test_rejects_garbage_token(client: TestClient) -> None:
     resp = client.get("/users", headers={"Authorization": "Bearer total-garbage"})
     assert resp.status_code == 401
-    assert resp.json()["detail"] == "Malformed token"
+    assert resp.json()["detail"] == "Invalid token"
 
 
-def test_protected_endpoint_rejects_empty_bearer(client: TestClient) -> None:
+def test_rejects_empty_bearer(client: TestClient) -> None:
     resp = client.get("/users", headers={"Authorization": "Bearer "})
     assert resp.status_code == 401
 
 
-def test_protected_endpoint_rejects_expired_token(client: TestClient) -> None:
-    exp_ts = int((datetime.now(UTC) - timedelta(minutes=1)).timestamp())
-    token_core = f"user:tee|exp:{exp_ts}"
-    sig = hmac.new(
-        TOKEN_SIGNING_SECRET.encode(),
-        token_core.encode(),
-        hashlib.sha256,
-    ).hexdigest()
-    expired_token = f"{token_core}|sig:{sig}"
-
-    resp = client.get("/users", headers={"Authorization": f"Bearer {expired_token}"})
+def test_rejects_expired_token(client: TestClient) -> None:
+    """Mint a JWT that expired 1 minute ago."""
+    now = datetime.now(UTC)
+    payload = {
+        "sub": "test-user",
+        "iss": token_service.ISSUER,
+        "aud": token_service.AUDIENCE,
+        "exp": now - timedelta(minutes=1),
+        "iat": now - timedelta(minutes=2),
+        "jti": str(uuid.uuid4()),
+        "scope": "",
+        "roles": ["user"],
+    }
+    expired = pyjwt.encode(payload, token_service._private_key, algorithm="ES256")
+    resp = client.get("/users", headers={"Authorization": f"Bearer {expired}"})
     assert resp.status_code == 401
     assert resp.json()["detail"] == "Token expired"
 
 
-def test_protected_endpoint_rejects_tampered_signature(client: TestClient) -> None:
-    exp_ts = int((datetime.now(UTC) + timedelta(minutes=30)).timestamp())
-    token_core = f"user:tee|exp:{exp_ts}"
-    tampered_token = f"{token_core}|sig:{'a' * 64}"
-
-    resp = client.get("/users", headers={"Authorization": f"Bearer {tampered_token}"})
-    assert resp.status_code == 401
-    assert resp.json()["detail"] == "Invalid token signature"
-
-
-def test_protected_endpoint_rejects_tampered_username(
-    client: TestClient, token: str
-) -> None:
-    # Swap "tee" for "evil" while keeping the original signature.
-    tampered = token.replace("user:tee|", "user:evil|", 1)
-    resp = client.get("/users", headers={"Authorization": f"Bearer {tampered}"})
-    assert resp.status_code == 401
-    assert resp.json()["detail"] == "Invalid token signature"
-
-
-# ---- 401: credential variants ----
-
-
-def test_auth_token_rejects_wrong_username(client: TestClient) -> None:
-    resp = client.post(
-        "/auth/token",
-        data={"username": "nobody", "password": "password"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
+def test_rejects_tampered_payload(client: TestClient, token: str) -> None:
+    """Modify the payload segment of a valid JWT — signature won't match."""
+    # A JWT has 3 base64 segments: header.payload.signature
+    # Swapping a character in the payload corrupts it.
+    parts = token.split(".")
+    parts[1] = parts[1][::-1]  # reverse the payload
+    tampered = ".".join(parts)
+    resp = client.get(
+        "/users",
+        headers={"Authorization": f"Bearer {tampered}"},
     )
     assert resp.status_code == 401
-    assert resp.json()["detail"] == "Invalid credentials"
+    assert resp.json()["detail"] == "Invalid token"
 
 
-# ---- 422: malformed login requests ----
+def test_rejects_wrong_issuer(client: TestClient) -> None:
+    """JWT signed with our key but wrong issuer claim."""
+    now = datetime.now(UTC)
+    payload = {
+        "sub": "test-user",
+        "iss": "evil-service",
+        "aud": token_service.AUDIENCE,
+        "exp": now + timedelta(minutes=15),
+        "iat": now,
+        "jti": str(uuid.uuid4()),
+        "scope": "",
+        "roles": ["user"],
+    }
+    bad_iss = pyjwt.encode(payload, token_service._private_key, algorithm="ES256")
+    resp = client.get("/users", headers={"Authorization": f"Bearer {bad_iss}"})
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "Invalid token"
 
 
-def test_auth_token_rejects_missing_body(client: TestClient) -> None:
-    resp = client.post("/auth/token")
-    assert resp.status_code == 422
-
-
-def test_auth_token_rejects_missing_password(client: TestClient) -> None:
-    resp = client.post(
-        "/auth/token",
-        data={"username": "tee"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    assert resp.status_code == 422
-
-
-def test_auth_token_rejects_missing_username(client: TestClient) -> None:
-    resp = client.post(
-        "/auth/token",
-        data={"password": "password"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    assert resp.status_code == 422
+def test_rejects_wrong_audience(client: TestClient) -> None:
+    """JWT signed with our key but wrong audience claim."""
+    now = datetime.now(UTC)
+    payload = {
+        "sub": "test-user",
+        "iss": token_service.ISSUER,
+        "aud": "wrong-service",
+        "exp": now + timedelta(minutes=15),
+        "iat": now,
+        "jti": str(uuid.uuid4()),
+        "scope": "",
+        "roles": ["user"],
+    }
+    bad_aud = pyjwt.encode(payload, token_service._private_key, algorithm="ES256")
+    resp = client.get("/users", headers={"Authorization": f"Bearer {bad_aud}"})
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "Invalid token"
 
 
 # ---- logging assertions ----
 
 
-def test_failed_login_logs_warning(
-    client: TestClient, caplog: pytest.LogCaptureFixture
-) -> None:
-    with caplog.at_level(logging.WARNING, logger="app.api.auth"):
-        client.post(
-            "/auth/token",
-            data={"username": "hacker", "password": "wrong"},
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-        )
-    assert any("Login failed" in m and "hacker" in m for m in caplog.messages)
-
-
-def test_successful_login_logs_info(
-    client: TestClient, caplog: pytest.LogCaptureFixture
-) -> None:
-    with caplog.at_level(logging.INFO, logger="app.api.auth"):
-        client.post(
-            "/auth/token",
-            data={"username": "tee", "password": "password"},
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-        )
-    assert any("Token issued" in m and "tee" in m for m in caplog.messages)
-
-
 def test_expired_token_logs_warning(
     client: TestClient, caplog: pytest.LogCaptureFixture
 ) -> None:
-    exp_ts = int((datetime.now(UTC) - timedelta(minutes=1)).timestamp())
-    token_core = f"user:tee|exp:{exp_ts}"
-    sig = hmac.new(
-        TOKEN_SIGNING_SECRET.encode(),
-        token_core.encode(),
-        hashlib.sha256,
-    ).hexdigest()
-    expired_token = f"{token_core}|sig:{sig}"
-
-    with caplog.at_level(logging.WARNING, logger="app.api.auth"):
-        client.get("/users", headers={"Authorization": f"Bearer {expired_token}"})
+    now = datetime.now(UTC)
+    payload = {
+        "sub": "test-user",
+        "iss": token_service.ISSUER,
+        "aud": token_service.AUDIENCE,
+        "exp": now - timedelta(minutes=1),
+        "iat": now - timedelta(minutes=2),
+        "jti": str(uuid.uuid4()),
+        "scope": "",
+        "roles": ["user"],
+    }
+    expired = pyjwt.encode(payload, token_service._private_key, algorithm="ES256")
+    with caplog.at_level(logging.WARNING, logger="app.api.dependencies"):
+        client.get(
+            "/users",
+            headers={"Authorization": f"Bearer {expired}"},
+        )
     assert any("Expired token" in m for m in caplog.messages)
 
 
-def test_tampered_signature_logs_warning(
+def test_invalid_token_logs_warning(
     client: TestClient, caplog: pytest.LogCaptureFixture
 ) -> None:
-    exp_ts = int((datetime.now(UTC) + timedelta(minutes=30)).timestamp())
-    token_core = f"user:tee|exp:{exp_ts}"
-    tampered_token = f"{token_core}|sig:{'a' * 64}"
-
-    with caplog.at_level(logging.WARNING, logger="app.api.auth"):
-        client.get("/users", headers={"Authorization": f"Bearer {tampered_token}"})
-    assert any("Invalid signature" in m for m in caplog.messages)
-
-
-def test_malformed_token_logs_warning(
-    client: TestClient, caplog: pytest.LogCaptureFixture
-) -> None:
-    with caplog.at_level(logging.WARNING, logger="app.api.auth"):
-        client.get("/users", headers={"Authorization": "Bearer total-garbage"})
-    assert any("Malformed token" in m for m in caplog.messages)
+    with caplog.at_level(logging.WARNING, logger="app.api.dependencies"):
+        client.get(
+            "/users",
+            headers={"Authorization": "Bearer total-garbage"},
+        )
+    assert any("Invalid token" in m for m in caplog.messages)
 
 
 def test_valid_token_logs_debug(
     client: TestClient, token: str, caplog: pytest.LogCaptureFixture
 ) -> None:
-    with caplog.at_level(logging.DEBUG, logger="app.api.auth"):
-        client.get("/users", headers={"Authorization": f"Bearer {token}"})
+    with caplog.at_level(logging.DEBUG, logger="app.api.dependencies"):
+        client.get(
+            "/users",
+            headers={"Authorization": f"Bearer {token}"},
+        )
     assert any("Token validated" in m for m in caplog.messages)

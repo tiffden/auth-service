@@ -20,6 +20,8 @@ dependencies = [
     "httpx",
     "python-multipart",
     "uvicorn[standard]",
+    "argon2-cffi>=23.1.0",
+    "PyJWT[crypto]>=2.8",
 ]
 
 [project.optional-dependencies]
@@ -46,7 +48,8 @@ select = ["E", "F", "I", "B", "UP"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q -m 'not docker'"
+markers = ["docker: tests that require a running Docker container"]
 # addopts = ["--import-mode=prepend"]
 
 # =========================

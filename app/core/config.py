@@ -17,6 +17,7 @@ def _getenv(name: str, default: str) -> str:
 class Settings:
     app_env: AppEnv
     log_level: LogLevel
+    port: int
 
     @property
     def is_dev(self) -> bool:
@@ -34,6 +35,7 @@ class Settings:
 def load_settings() -> Settings:
     app_env_raw = _getenv("APP_ENV", "dev").lower()
     log_level_raw = _getenv("LOG_LEVEL", "info").lower()
+    port_raw = _getenv("PORT", "8000")
 
     if app_env_raw not in ("dev", "test", "prod"):
         raise ValueError(f"APP_ENV must be dev|test|prod (got {app_env_raw!r})")
@@ -43,7 +45,12 @@ def load_settings() -> Settings:
             f"LOG_LEVEL must be debug|info|warning|error (got {log_level_raw!r})"
         )
 
-    return Settings(app_env=app_env_raw, log_level=log_level_raw)  # type: ignore[arg-type]
+    try:
+        port = int(port_raw)
+    except ValueError:
+        raise ValueError(f"PORT must be an integer (got {port_raw!r})") from None
+
+    return Settings(app_env=app_env_raw, log_level=log_level_raw, port=port)  # type: ignore[arg-type]
 
 
 # Optional: module-level singleton so imports are cheap

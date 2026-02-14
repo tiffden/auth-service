@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.services import users_service
+from app.services import token_service, users_service
 from app.services.users_service import User
 
 # Ensure repo root is on sys.path so `import app` works under pytest.
@@ -31,14 +31,21 @@ def client() -> TestClient:
     return TestClient(app)
 
 
+def mint_token(
+    username: str = "test-user",
+    roles: list[str] | None = None,
+) -> str:
+    """Create a valid ES256 JWT for testing."""
+    return token_service.create_access_token(sub=username, roles=roles)
+
+
 @pytest.fixture
-def token(client: TestClient) -> str:
-    resp = client.post(
-        "/auth/token",
-        data={"username": "tee", "password": "password"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    assert resp.status_code == 200
-    payload = resp.json()
-    assert "access_token" in payload
-    return payload["access_token"]
+def token() -> str:
+    """Token with default role (user)."""
+    return mint_token()
+
+
+@pytest.fixture
+def admin_token() -> str:
+    """Token with admin role."""
+    return mint_token(username="test-admin", roles=["admin"])

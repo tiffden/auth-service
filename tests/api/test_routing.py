@@ -29,6 +29,6 @@ def test_put_health_returns_405(client: TestClient) -> None:
     assert resp.status_code == 405
 
 
-def test_get_auth_token_returns_405(client: TestClient) -> None:
-    resp = client.get("/auth/token")
+def test_get_oauth_token_returns_405(client: TestClient) -> None:
+    resp = client.get("/oauth/token")
     assert resp.status_code == 405
