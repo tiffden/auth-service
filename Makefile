@@ -13,7 +13,7 @@ format:
 test:
 	python -m pytest -q
 
-test-oauth-flow:
-	pytest tests/api/test_oauth_pkce_flow.py -v --log-cli-level=INFO 
+test-docker:
+	pytest -m docker -v --log-cli-level=INFO
 
 ci: lint format test

@@ -48,7 +48,7 @@ select = ["E", "F", "I", "B", "UP"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q -m 'not docker'"
 markers = ["docker: tests that require a running Docker container"]
 # addopts = ["--import-mode=prepend"]
 
