@@ -5,56 +5,23 @@ import hmac
 import logging
 import os
 import secrets
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from pydantic import BaseModel
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["auth"])
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
-TOKEN_TTL_MIN = 30
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/oauth/token")
 TOKEN_SIGNING_SECRET = os.getenv("TOKEN_SIGNING_SECRET", "dev-only-secret-change-me")
 
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    expires_at: datetime
-
-
-@router.post("/auth/token", response_model=Token)
-def issue_token(form: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Token:
-    if not (
-        secrets.compare_digest(form.username, "tee")
-        and secrets.compare_digest(form.password, "password")
-    ):
-        logger.warning("Login failed for user=%s", form.username)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    expires_at = datetime.now(UTC) + timedelta(minutes=TOKEN_TTL_MIN)
-    exp_ts = int(expires_at.timestamp())
-    token_core = f"user:{form.username}|exp:{exp_ts}"
-    sig = hmac.new(
-        TOKEN_SIGNING_SECRET.encode("utf-8"),
-        token_core.encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
-    token = f"{token_core}|sig:{sig}"
-
-    logger.info("Token issued for user=%s", form.username)
-    return Token(access_token=token, expires_at=expires_at)
-
-
 def require_user(token: Annotated[str, Depends(oauth2_scheme)]) -> str:
+    """Extract and validate the bearer token. Returns the username (sub).
+
+    Used as a FastAPI dependency on any protected endpoint.
+    """
     try:
         parts = token.split("|")
         user_part = parts[0]

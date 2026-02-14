@@ -14,6 +14,6 @@ test:
 	python -m pytest -q
 
 test-oauth-flow:
-	pytest tests/api/test_oauth_pkce_flow.py -s --log-cli-level=INFO 
+	pytest tests/api/test_oauth_pkce_flow.py -v --log-cli-level=INFO 
 
 ci: lint format test

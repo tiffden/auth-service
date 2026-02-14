@@ -159,3 +159,33 @@ Key architecture:
  • **Token Introspection** (RFC 7662) — An endpoint (`/introspect`) where a resource server can send an opaque token to the authorization server and get back its metadata (active, scope, exp, sub, etc.). Required when using opaque tokens; unnecessary when using self-contained JWTs.
  • **Revocation Endpoint** (RFC 7009) — An endpoint (`/revoke`) where a client can request the invalidation of an access or refresh token. The authorization server marks the token as revoked. Essential for logout flows and credential compromise response.
  • **Dynamic Client Registration** (RFC 7591) — An endpoint (`/register`) where clients can programmatically register themselves with the authorization server and obtain a `client_id` and `client_secret`. Useful for platforms that onboard many third-party integrations without manual admin configuration.
+
+## Implementation of Endpoints
+
+```bash
+pytest tests/api/test_oauth_pkce_flow.py -v -s
+```
+
+Authorize (9 steps):
+
+1. request received →
+2. response_type →
+3. client_id →
+4. redirect_uri →
+5. PKCE params →
+6. user auth (stub) →
+7. code generated →
+8. metadata stored →
+9. redirect
+
+Token (9 steps):
+
+1. request received →
+2. grant_type →
+3. code found →
+4. not expired →
+5. consumed (single-use) →
+6. client_id matches →
+7. redirect_uri matches →
+8. PKCE verified →
+9. token issued
