@@ -7,6 +7,7 @@ import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 
+from app.models.principal import Principal
 from app.services import token_service
 
 logger = logging.getLogger(__name__)
@@ -16,8 +17,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/oauth/token")
 
 def require_user(
     raw_token: Annotated[str, Depends(oauth2_scheme)],
-) -> str:
-    """Extract and validate the JWT bearer token. Returns the sub claim.
+) -> Principal:
+    """Extract and validate the JWT bearer token. Returns a Principal.
 
     Used as a FastAPI dependency on any protected endpoint.
     """
@@ -38,9 +39,65 @@ def require_user(
             headers={"WWW-Authenticate": "Bearer"},
         ) from None
 
-    username = claims["sub"]
-    logger.debug("Token validated for user=%s", username)
-    return username
+    principal = Principal(
+        user_id=claims["sub"],
+        roles=frozenset(claims.get("roles", [])),
+    )
+    logger.debug(
+        "Token validated for user=%s roles=%s",
+        principal.user_id,
+        principal.roles,
+    )
+    return principal
+
+
+def require_role(role: str):
+    """Dependency factory: demand a specific role.
+
+    Usage: Depends(require_role("admin"))
+    Returns the Principal if the role is present, else 403.
+    """
+
+    def _guard(
+        principal: Annotated[Principal, Depends(require_user)],
+    ) -> Principal:
+        if not principal.has_role(role):
+            logger.warning(
+                "Access denied: user=%s missing role=%s",
+                principal.user_id,
+                role,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions",
+            )
+        return principal
+
+    return _guard
+
+
+def require_any_role(roles: set[str]):
+    """Dependency factory: demand at least one of the given roles.
+
+    Usage: Depends(require_any_role({"admin", "instructor"}))
+    """
+
+    def _guard(
+        principal: Annotated[Principal, Depends(require_user)],
+    ) -> Principal:
+        if not principal.has_any_role(roles):
+            logger.warning(
+                "Access denied: user=%s has none of roles=%s",
+                principal.user_id,
+                roles,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions",
+            )
+        return principal
+
+    return _guard
 
 
 def get_interactive_user(request: Request) -> str | None:

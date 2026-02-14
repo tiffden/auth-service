@@ -19,7 +19,7 @@ Flow:
   1. Login           — POST /login to get a session cookie
   2. Authorize       — GET /oauth/authorize → 302 redirect with code
   3. Token           — POST /oauth/token (code + verifier) → access_token
-  4. Resource        — GET /users with Bearer token → 200
+  4. Resource        — GET /resource/me with Bearer token → 200
 """
 
 from __future__ import annotations
@@ -149,8 +149,10 @@ def test_pkce_flow_happy_path() -> None:
         logger.info("CLIENT: received access token")
 
         # ── Phase 5: Access Protected Resource ──────────────────────
+        # Hit /resource/me (any authenticated user) rather than /users
+        # (admin-only) since OAuth tokens carry the default "user" role.
         resource_resp = client.get(
-            "/users",
+            "/resource/me",
             headers={"Authorization": f"Bearer {access_token}"},
         )
         assert resource_resp.status_code == 200, (

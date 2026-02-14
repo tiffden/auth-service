@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.api.dependencies import require_user
+from app.models.principal import Principal
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ class ProfileOut(BaseModel):
 
 @router.get("/resource/me", response_model=ProfileOut)
 def get_my_profile(
-    username: Annotated[str, Depends(require_user)],
+    principal: Annotated[Principal, Depends(require_user)],
 ) -> ProfileOut:
     """Protected endpoint — requires a valid access token.
 
@@ -28,8 +29,8 @@ def get_my_profile(
     This demonstrates the final leg of the OAuth flow: the client uses
     the access token to reach a protected resource.
     """
-    logger.info("Resource accessed by user=%s", username)
+    logger.info("Resource accessed by user=%s", principal.user_id)
     return ProfileOut(
-        username=username,
-        message=f"Hello {username}, you have a valid token.",
+        username=principal.user_id,
+        message=f"Hello {principal.user_id}, you have a valid token.",
     )

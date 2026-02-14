@@ -4,6 +4,7 @@ import logging
 
 from fastapi import FastAPI
 
+from app.api.admin import router as admin_router
 from app.api.health import router as health_router
 from app.api.login import router as login_router
 from app.api.oauth import router as oauth_router
@@ -25,6 +26,7 @@ app = FastAPI(
     redoc_url="/redoc" if SETTINGS.is_dev else None,
 )
 
+app.include_router(admin_router)
 app.include_router(health_router)
 app.include_router(login_router)
 app.include_router(oauth_router)

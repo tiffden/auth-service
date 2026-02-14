@@ -175,8 +175,10 @@ def test_pkce_flow_happy_path(caplog: pytest.LogCaptureFixture) -> None:
     # ── Phase 4: Access Protected Resource ─────────────────────────
     # The client uses the access token to call a protected endpoint.
     # This proves the full circle: login → authorize → token → use.
+    # We hit /resource/me (any authenticated user) rather than /users
+    # (admin-only) because OAuth tokens carry the default "user" role.
     resource_resp = client.get(
-        "/users",
+        "/resource/me",
         headers={"Authorization": f"Bearer {access_token}"},
     )
     assert resource_resp.status_code == 200, (
