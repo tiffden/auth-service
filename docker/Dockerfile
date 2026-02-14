@@ -116,10 +116,10 @@ USER appuser
 # Production-ish default command.
 # - Bind to 0.0.0.0 so the container is reachable from outside.
 # - Port is read from the PORT env var (default 8000).
+# - exec replaces the shell so uvicorn is PID 1 and receives SIGTERM directly.
 #
 # Note: In local dev you might add `--reload`, but avoid that in production images.
-# Shell form so $PORT is expanded at runtime from the environment.
-CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port $PORT"]
 
 ############################
 # Stage 3 — dev/test (tooling)
