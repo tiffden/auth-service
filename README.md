@@ -165,13 +165,22 @@ docker build -f docker/Dockerfile --target runtime -t auth-service:dev .
 docker run --rm --name auth-service-dev -p 8000:8000 --env-file .env auth-service:dev
 ```
 
-### Terminal 2 - Test Environment
+### Terminal 2 - Run Checks and Docker Tests
+
+Always verify before committing. Run the full CI check and the Docker
+integration tests:
 
 ```bash
-python -m pytest -q
+make ci
+make test-docker
 ```
 
-### Check In Code to Git
+`make ci` runs lint, format check, and the unit/integration test suite.
+`make test-docker` runs the Docker-dependent tests against a live
+container (`pytest -m docker -v --log-cli-level=INFO`). Both should
+pass cleanly before you commit.
+
+### Check Code into Git
 
 Stage specific files (avoid `git add .` which can accidentally include
 `.env` or other secrets):
