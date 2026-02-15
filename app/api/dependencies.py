@@ -152,7 +152,18 @@ def resolve_org_principal(membership_repo: OrgMembershipRepo):
         if principal.is_platform_admin():
             return replace(principal, org_id=org_id, org_role="admin")
 
-        membership = membership_repo.get(org_id, UUID(principal.user_id))
+        try:
+            user_uuid = UUID(principal.user_id)
+        except ValueError:
+            logger.warning(
+                "Invalid token subject for org-scoped access: %s", principal.user_id
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token subject",
+            ) from None
+
+        membership = membership_repo.get(org_id, user_uuid)
         if membership is None:
             logger.warning(
                 "Access denied: user=%s not a member of org=%s",

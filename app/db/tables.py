@@ -34,7 +34,9 @@ class UserRow(Base):
     email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False, default="")
-    roles: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=[])
+    roles: Mapped[list[str]] = mapped_column(
+        ARRAY(String), nullable=False, default=list
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
 
@@ -46,11 +48,11 @@ class OAuthClientRow(Base):
     )
     client_id: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     redirect_uris: Mapped[list[str]] = mapped_column(
-        ARRAY(String), nullable=False, default=[]
+        ARRAY(String), nullable=False, default=list
     )
     is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     allowed_scopes: Mapped[list[str]] = mapped_column(
-        ARRAY(String), nullable=False, default=[]
+        ARRAY(String), nullable=False, default=list
     )
 
 
