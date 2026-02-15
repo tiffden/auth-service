@@ -29,6 +29,7 @@ class PgUserRepo:
             id=user.id,
             email=user.email,
             password_hash=user.password_hash,
+            name=user.name,
             roles=list(user.roles),
             is_active=user.is_active,
         )
@@ -53,6 +54,7 @@ def _row_to_user(row: UserRow) -> User:
         id=row.id,
         email=row.email,
         password_hash=row.password_hash,
+        name=row.name or "",
         roles=tuple(row.roles) if row.roles else (),
         is_active=row.is_active,
     )

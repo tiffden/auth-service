@@ -5,6 +5,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.admin import router as admin_router
 from app.api.courses import router as courses_router
@@ -13,6 +14,7 @@ from app.api.health import router as health_router
 from app.api.login import router as login_router
 from app.api.oauth import router as oauth_router
 from app.api.progress import router as progress_router
+from app.api.register import router as register_router
 from app.api.resource import router as resource_router
 from app.api.users import router as users_router
 from app.core.config import SETTINGS
@@ -40,6 +42,14 @@ app = FastAPI(
     redoc_url="/redoc" if SETTINGS.is_dev else None,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(admin_router)
 app.include_router(courses_router)
 app.include_router(credentials_router)
@@ -47,6 +57,7 @@ app.include_router(health_router)
 app.include_router(login_router)
 app.include_router(oauth_router)
 app.include_router(progress_router)
+app.include_router(register_router)
 app.include_router(resource_router)
 app.include_router(users_router)
 
