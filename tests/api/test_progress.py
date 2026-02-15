@@ -45,3 +45,31 @@ def test_progress_event_idempotency(client: TestClient, token: str) -> None:
     assert first.status_code == 202
     assert second.status_code == 202
     assert first.json()["id"] == second.json()["id"]
+
+
+def test_progress_event_idempotency_conflict_on_payload_mismatch(
+    client: TestClient, token: str
+) -> None:
+    headers = {"Authorization": f"Bearer {token}"}
+    key = "same-key-different-payload"
+    first = client.post(
+        "/v1/progress/events",
+        json={
+            "course_id": "intro-to-claude",
+            "type": "item_completed",
+            "idempotency_key": key,
+        },
+        headers=headers,
+    )
+    second = client.post(
+        "/v1/progress/events",
+        json={
+            "course_id": "intro-to-claude",
+            "type": "assessment_submitted",
+            "idempotency_key": key,
+        },
+        headers=headers,
+    )
+
+    assert first.status_code == 202
+    assert second.status_code == 409

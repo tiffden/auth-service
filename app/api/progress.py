@@ -12,7 +12,7 @@ import datetime
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from app.api.dependencies import require_user
@@ -52,10 +52,30 @@ def ingest_progress_event(
     event: ProgressEventIn,
     principal: Annotated[Principal, Depends(require_user)],
 ) -> ProgressEventOut:
+    semantic_fingerprint = {
+        "user_id": principal.user_id,
+        "course_id": event.course_id,
+        "type": event.type,
+        "entity_type": event.entity_type,
+        "entity_id": event.entity_id,
+        "payload_json": event.payload_json,
+    }
+
     # Idempotency check
     if event.idempotency_key:
         for existing in _PROGRESS_EVENTS:
             if existing.get("idempotency_key") == event.idempotency_key:
+                existing_fingerprint = existing.get("semantic_fingerprint")
+                if (
+                    existing_fingerprint is not None
+                    and existing_fingerprint != semantic_fingerprint
+                ):
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=(
+                            "Idempotency key reuse with a different request payload"
+                        ),
+                    )
                 return ProgressEventOut(**existing)
 
     now = int(datetime.datetime.now(datetime.UTC).timestamp())
@@ -66,6 +86,7 @@ def ingest_progress_event(
         "type": event.type,
         "occurred_at": now,
         "idempotency_key": event.idempotency_key,
+        "semantic_fingerprint": semantic_fingerprint,
     }
     _PROGRESS_EVENTS.append(record)
 
