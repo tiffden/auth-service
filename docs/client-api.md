@@ -216,8 +216,9 @@ They are design targets and may not be implemented yet.
 
 ### Tenant scope
 
-- All requests are resolved in an org context (`org_id`) from auth principal.
-- All write paths are org-scoped and idempotent where retriable.
+- `users` are global identities; org access is resolved through `org_memberships`.
+- Request authorization resolves an active org context (`org_id`) from membership.
+- Write paths that can be retried are idempotent.
 
 ### Enroll learner
 
@@ -230,12 +231,12 @@ Headers:
 
 Behavior:
 
-- Creates enrollment if absent.
-- Appends `enrolled` event to progress event log.
-- Replayed key with same payload returns existing enrollment.
+- Upserts `course_progress` to `in_progress` for `(org_id, user_id, course_id)`.
+- Appends `progress_events` with `type=enrolled`.
+- Replayed key with same payload returns original progress snapshot.
 - Replayed key with mismatched payload returns conflict.
 
-### Complete pathway node
+### Complete module item
 
 `POST /v1/courses/{courseId}/nodes/{nodeId}/complete`
 
@@ -246,12 +247,28 @@ Headers:
 
 Behavior:
 
-- Appends `item_completed` event.
-- Updates/readies projection for learner progress state.
+- Appends `progress_events` with `type=item_completed` and `entity_type=module_item`.
+- Returns `202 Accepted` if projection is async, or `200 OK` if synchronous.
+- Projection updates `course_progress` (`percent_complete`, `last_activity_at`).
+
+### Start assessment attempt
+
+`POST /v1/assessments/{assessmentId}/attempts`
+
+Headers:
+
+- `Authorization: Bearer <accessToken>`
+- Optional `Idempotency-Key: <uuid>`
+
+Behavior:
+
+- Creates `assessment_attempts` row with `status=in_progress`.
+- Freezes `assessment_version` at start.
+- Returns `attemptId`.
 
 ### Submit assessment attempt
 
-`POST /v1/assessments/{assessmentId}/attempts`
+`POST /v1/attempts/{attemptId}/submit`
 
 Headers:
 
@@ -260,9 +277,11 @@ Headers:
 
 Behavior:
 
-- Persists attempt submission.
-- Persists grade/evaluation outcome.
-- Appends `assessment_passed` or `assessment_failed` event.
+- Updates `assessment_attempts` to `status=submitted`.
+- Appends `progress_events` with `type=assessment_submitted`.
+- Grading path writes `attempt_responses`, updates attempt to `graded`, then appends:
+  - `assessment_passed`, or
+  - `assessment_failed`
 
 ### Issue credential
 
@@ -275,9 +294,17 @@ Headers:
 
 Behavior:
 
-- Evaluates issuance rules against projection and attempts.
-- Records issuance.
-- Appends `credential_issued` event.
+- Evaluates eligibility using `course_progress` and assessment attempts.
+- Records `user_credentials` with `evidence_json`.
+- Appends `progress_events` with `type=credential_issued`.
+
+### AI interaction logging (Week 9 implementation target)
+
+This is included to match the Week 4 schema shape, but implementation is planned later.
+
+- Session table: `ai_sessions`
+- Child events: `ai_interactions`
+- Human signal: `ai_feedback`
 
 ### Versioning policy
 
