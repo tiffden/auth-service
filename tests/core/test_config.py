@@ -83,27 +83,27 @@ def test_load_settings_rejects_empty_log_level(
 
 
 def test_settings_is_dev() -> None:
-    s = Settings(app_env="dev", log_level="info", port=8000)  # type: ignore[arg-type]
+    s = Settings(app_env="dev", log_level="info", port=8000, database_url=None)  # type: ignore[arg-type]
     assert s.is_dev is True
     assert s.is_test is False
     assert s.is_prod is False
 
 
 def test_settings_is_test() -> None:
-    s = Settings(app_env="test", log_level="info", port=8000)  # type: ignore[arg-type]
+    s = Settings(app_env="test", log_level="info", port=8000, database_url=None)  # type: ignore[arg-type]
     assert s.is_dev is False
     assert s.is_test is True
     assert s.is_prod is False
 
 
 def test_settings_is_prod() -> None:
-    s = Settings(app_env="prod", log_level="info", port=8000)  # type: ignore[arg-type]
+    s = Settings(app_env="prod", log_level="info", port=8000, database_url=None)  # type: ignore[arg-type]
     assert s.is_dev is False
     assert s.is_test is False
     assert s.is_prod is True
 
 
 def test_settings_is_frozen() -> None:
-    s = Settings(app_env="dev", log_level="info", port=8000)  # type: ignore[arg-type]
+    s = Settings(app_env="dev", log_level="info", port=8000, database_url=None)  # type: ignore[arg-type]
     with pytest.raises(AttributeError):
         s.app_env = "prod"  # type: ignore[misc]

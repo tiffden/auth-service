@@ -3,6 +3,23 @@ name: auth-service
 # The volumes mount makes local edits immediately visible in-container.
 # command overrides your Dockerfile default only for compose (dev).
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: auth-service-postgres
+    environment:
+      POSTGRES_USER: auth
+      POSTGRES_PASSWORD: auth
+      POSTGRES_DB: auth_service
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth -d auth_service"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   api:
     image: auth-service:dev
     pull_policy: never
@@ -13,10 +30,15 @@ services:
       target: runtime
     env_file:
       - ../.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://auth:auth@postgres:5432/auth_service
     ports:
       - "8000:8000"
     volumes:
       - ../:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
     command: >
       uvicorn app.main:app
       --host 0.0.0.0
@@ -38,3 +60,6 @@ services:
     volumes:
       - ../:/app
     command: python -m pytest -q
+
+volumes:
+  pgdata:
