@@ -215,6 +215,86 @@ Example: a learner enrolls in a course.
 
 ---
 
+## Tenant boundary: the `org_id` rule
+
+**Hard rule: every learner-facing row carries `org_id`, and all
+reads/writes are scoped by `org_id`.**
+
+This is the single most important data-integrity constraint in the
+system. Without it, one organization's learners can see another
+organization's data — the most common security bug in multi-tenant
+SaaS.
+
+### What "learner-facing" means
+
+Any row that is created by, displayed to, or describes the activity
+of a learner within an organization. This includes:
+
+| Category | Tables | `org_id` source |
+| ---- | ---- | ---- |
+| Content (org-private) | `courses`, `course_modules`, `module_items`, `assessments`, `assessment_items` | Direct column on `courses`; children inherit via FK chain |
+| Content (shared catalog) | Same tables | `org_id = NULL` means platform-wide |
+| Learner activity | `progress_events`, `course_progress`, `assessment_attempts`, `attempt_responses` | Direct column — always required, never NULL |
+| Credentials | `credentials`, `user_credentials` | Direct column — the issuing org |
+| AI interactions | `ai_sessions`, `ai_interactions`, `ai_feedback` | Direct column on `ai_sessions`; children inherit |
+| Pathways | `learning_pathways`, `pathway_courses` | Direct column on `learning_pathways` |
+
+### What is NOT org-scoped
+
+| Table | Why |
+| ---- | ---- |
+| `users` | A user account is global — one person can belong to multiple orgs |
+| `organizations` | The tenant itself |
+| `org_memberships` | The join table that connects users to orgs |
+| `oauth_clients` | Platform-level auth infrastructure |
+| `authorization_codes` | Platform-level auth infrastructure |
+
+### Enforcement rules
+
+1. **Domain models.** Every learner-facing domain model carries
+   `org_id: UUID` (required) or `org_id: UUID | None` (for
+   content that can be platform-wide). The type annotation makes
+   the expectation explicit.
+
+2. **Database tables.** Every learner-facing table has an `org_id`
+   column with a foreign key to `organizations.id`. High-volume
+   tables (`progress_events`, `assessment_attempts`) should have a
+   composite index that starts with `org_id` for query performance.
+
+3. **Repository layer.** All read methods accept `org_id` as a
+   required parameter and include it in the WHERE clause. No
+   "get all across orgs" method exists in the default repo
+   protocol — cross-org queries are admin-only and require an
+   explicit `AdminRepo` or a separate service.
+
+4. **API layer.** The `Principal` carries `org_id` and `org_role`
+   (resolved from the JWT or session). API guards check both
+   authentication ("who are you?") and tenant scope ("are you
+   asking about your own org?").
+
+5. **Tests.** Multi-tenant isolation tests use two distinct org_ids
+   and assert that operations scoped to org A never return data
+   belonging to org B.
+
+### Current status
+
+| Entity | Model has `org_id` | Table has `org_id` | Repos scoped |
+| ---- | ---- | ---- | ---- |
+| Course | Yes (nullable) | Yes (nullable FK) | Not yet |
+| Assessment | Not yet | Not yet | Not yet |
+| ProgressEvent | Not yet | Not yet | Not yet |
+| CourseProgress | Not yet | Not yet | Not yet |
+| Credential | Not yet | Not yet | Not yet |
+| UserCredential | Not yet | Not yet | Not yet |
+| AISession | Not yet | Not yet | Not yet |
+| LearningPathway | Not yet | Not yet | Not yet |
+| Principal | Not yet (no `org_id`, no `org_role`) | N/A | N/A |
+
+Adding `org_id` to remaining models and tables is the first schema
+task before building any new learner-facing feature.
+
+---
+
 ## Configuration: database on or off
 
 The service works in two modes:
