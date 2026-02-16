@@ -21,7 +21,7 @@ async def health() -> dict[str, str]:
 
     if redis_pool is not None:
         try:
-            await redis_pool.ping()
+            await redis_pool.ping()  # type: ignore[misc]
             result["redis"] = "ok"
         except Exception:
             result["redis"] = "degraded"
