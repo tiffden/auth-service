@@ -17,6 +17,13 @@ class PgUserRepo:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
+    async def get_by_id(self, user_id: UUID) -> User | None:
+        stmt = select(UserRow).where(UserRow.id == user_id)
+        row = (await self._session.execute(stmt)).scalar_one_or_none()
+        if row is None:
+            return None
+        return _row_to_user(row)
+
     async def get_by_email(self, email: str) -> User | None:
         stmt = select(UserRow).where(UserRow.email == email)
         row = (await self._session.execute(stmt)).scalar_one_or_none()
@@ -47,6 +54,13 @@ class PgUserRepo:
             .values(password_hash=password_hash)
         )
         await self._session.execute(stmt)
+
+    async def update_name(self, user_id: UUID, name: str) -> User | None:
+        stmt = update(UserRow).where(UserRow.id == user_id).values(name=name)
+        result = await self._session.execute(stmt)
+        if result.rowcount == 0:
+            return None
+        return await self.get_by_id(user_id)
 
 
 def _row_to_user(row: UserRow) -> User:

@@ -7,9 +7,13 @@ behave correctly across all protected endpoints.
 
 from __future__ import annotations
 
+from uuid import uuid4
+
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.login import user_repo
+from app.models.user import User
 from tests.conftest import mint_token
 
 
@@ -20,18 +24,21 @@ def _auth(token: str | None) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-# Tokens for each role, created once per module
-@pytest.fixture
-def user_token() -> str:
-    return mint_token(username="role-user", roles=["user"])
+def _ensure_user(role: str) -> str:
+    """Create a user in the repo and return a token with the given role.
 
-
-@pytest.fixture
-def admin_token_local() -> str:
-    return mint_token(username="role-admin", roles=["admin"])
+    Endpoints like /auth/me need a real user in the repo, so we seed one.
+    """
+    user = User.new(email=f"rbac-{role}-{uuid4().hex[:6]}@test.com", password_hash="x")
+    user_repo.add(user)
+    return mint_token(username=str(user.id), roles=[role])
 
 
 # ---- Table-driven access-control tests ----
+
+# Endpoints that need a real user seeded in the repo (sub must be a valid UUID
+# that exists in user_repo).
+_NEEDS_REAL_USER = {"/auth/me", "/v1/orgs"}
 
 _RBAC_CASES = [
     # (endpoint, method, role, expected_status)
@@ -51,6 +58,14 @@ _RBAC_CASES = [
     ("/users", "POST", "admin", 201),
     ("/users", "POST", "user", 403),
     ("/users", "POST", None, 401),
+    # /auth/me — any authenticated user (needs real user in repo)
+    ("/auth/me", "GET", "user", 200),
+    ("/auth/me", "GET", "admin", 200),
+    ("/auth/me", "GET", None, 401),
+    # POST /v1/orgs — any authenticated user
+    ("/v1/orgs", "POST", "user", 201),
+    ("/v1/orgs", "POST", "admin", 201),
+    ("/v1/orgs", "POST", None, 401),
 ]
 
 
@@ -72,13 +87,21 @@ def test_rbac(
     role: str | None,
     expected: int,
 ) -> None:
-    token = mint_token(roles=[role]) if role else None
+    if role and endpoint in _NEEDS_REAL_USER:
+        token = _ensure_user(role)
+    else:
+        token = mint_token(roles=[role]) if role else None
     headers = _auth(token)
 
     if method == "GET":
         resp = client.get(endpoint, headers=headers)
     elif method == "POST":
-        body = {"email": "rbac-test@example.com"} if "/users" in endpoint else {}
+        if "/users" in endpoint:
+            body = {"email": "rbac-test@example.com"}
+        elif "/v1/orgs" in endpoint:
+            body = {"name": "RBAC Org", "slug": f"rbac-{uuid4().hex[:8]}"}
+        else:
+            body = {}
         resp = client.post(endpoint, json=body, headers=headers)
     else:
         pytest.fail(f"Unsupported method: {method}")

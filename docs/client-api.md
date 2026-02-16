@@ -298,6 +298,20 @@ Behavior:
 - Records `user_credentials` with `evidence_json`.
 - Appends `progress_events` with `type=credential_issued`.
 
+### Verify issued credential (public)
+
+`GET /v1/credentials/{credentialId}/verify`
+
+Headers:
+
+- No auth required.
+
+Behavior:
+
+- Looks up issued credential in `user_credentials`.
+- Resolves credential definition from `credentials`.
+- Returns verification payload including `valid` status.
+
 ### AI interaction logging (Week 9 implementation target)
 
 This is included to match the Week 4 schema shape, but implementation is planned later.

@@ -7,13 +7,8 @@ This endpoint provides external verification: GET /v1/credentials/{id}/verify
 
 from __future__ import annotations
 
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-
-from app.api.dependencies import require_user
-from app.models.principal import Principal
 
 router = APIRouter(prefix="/v1/credentials", tags=["credentials"])
 
@@ -36,7 +31,6 @@ _USER_CREDENTIALS: dict[str, dict] = {}
 @router.get("/{credential_id}/verify", response_model=CredentialVerifyOut)
 def verify_credential(
     credential_id: str,
-    _principal: Annotated[Principal, Depends(require_user)],
 ) -> CredentialVerifyOut:
     uc = _USER_CREDENTIALS.get(credential_id)
     if uc is None:

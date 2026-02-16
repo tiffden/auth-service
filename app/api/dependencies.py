@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import logging
 from dataclasses import replace
 from typing import Annotated
@@ -62,7 +60,7 @@ def require_role(role: str):
     """
 
     def _guard(
-        principal: Annotated[Principal, Depends(require_user)],
+        principal: Principal = Depends(require_user),  # noqa: B008
     ) -> Principal:
         if not principal.has_role(role):
             logger.warning(
@@ -86,7 +84,7 @@ def require_any_role(roles: set[str]):
     """
 
     def _guard(
-        principal: Annotated[Principal, Depends(require_user)],
+        principal: Principal = Depends(require_user),  # noqa: B008
     ) -> Principal:
         if not principal.has_any_role(roles):
             logger.warning(
@@ -125,6 +123,10 @@ def get_interactive_user(request: Request) -> str | None:
 
 # ---------------------------------------------------------------------------
 # Org-scoped access guards
+#
+# These use `= Depends(...)` default syntax (not Annotated) because
+# Annotated with closure-captured callables doesn't resolve correctly
+# when `from __future__ import annotations` is active in importing modules.
 # ---------------------------------------------------------------------------
 
 
@@ -141,13 +143,13 @@ def resolve_org_principal(membership_repo: OrgMembershipRepo):
         _resolve = resolve_org_principal(membership_repo)
 
         @router.get("/v1/orgs/{org_id}")
-        def get_org(principal: Annotated[Principal, Depends(_resolve)]):
+        def get_org(principal: Principal = Depends(_resolve)):
             ...
     """
 
     def _resolve(
         org_id: UUID,
-        principal: Annotated[Principal, Depends(require_user)],
+        principal: Principal = Depends(require_user),  # noqa: B008
     ) -> Principal:
         if principal.is_platform_admin():
             return replace(principal, org_id=org_id, org_role="admin")
@@ -188,13 +190,13 @@ def require_org_role(role: str, membership_repo: OrgMembershipRepo):
         _require_admin = require_org_role("admin", membership_repo)
 
         @router.post("/v1/orgs/{org_id}/members")
-        def add_member(principal: Annotated[Principal, Depends(_require_admin)]):
+        def add_member(principal: Principal = Depends(_require_admin)):
             ...
     """
     _resolve = resolve_org_principal(membership_repo)
 
     def _guard(
-        principal: Annotated[Principal, Depends(_resolve)],
+        principal: Principal = Depends(_resolve),  # noqa: B008
     ) -> Principal:
         if principal.is_platform_admin():
             return principal
@@ -225,7 +227,7 @@ def require_any_org_role(roles: set[str], membership_repo: OrgMembershipRepo):
     _resolve = resolve_org_principal(membership_repo)
 
     def _guard(
-        principal: Annotated[Principal, Depends(_resolve)],
+        principal: Principal = Depends(_resolve),  # noqa: B008
     ) -> Principal:
         if principal.is_platform_admin():
             return principal
