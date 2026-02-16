@@ -24,7 +24,7 @@
 # - annotations: human-readable context for the on-call engineer
 #
 # These rules match the three SLOs defined in app/core/slo.py and the
-# runbooks in docs/alert-runbooks.md.
+# runbooks in docs/runbooks/alert-runbooks.md.
 
 groups:
   - name: auth-service-slo-alerts
@@ -60,8 +60,8 @@ groups:
           description: >-
             More than 0.5% of HTTP requests are returning 5xx status codes
             over the last 5 minutes.  This is burning the error budget.
-            See runbook: docs/alert-runbooks.md#availability-slo-breach
-          dashboard: "http://localhost:3000/d/auth-slo/auth-service-slo-dashboard"
+            See runbook: docs/runbooks/alert-runbooks.md#availability-slo-breach
+          dashboard: "http://localhost:3000/d/auth-service-slo/auth-service-slo-dashboard"
 
       # ── Latency SLO: p95 < 500ms ─────────────────────────────────
       #
@@ -95,8 +95,8 @@ groups:
             The 95th percentile response time has been above 500ms for
             5 minutes.  At least 5% of requests are experiencing slow
             responses.
-            See runbook: docs/alert-runbooks.md#latency-slo-breach
-          dashboard: "http://localhost:3000/d/auth-slo/auth-service-slo-dashboard"
+            See runbook: docs/runbooks/alert-runbooks.md#latency-slo-breach
+          dashboard: "http://localhost:3000/d/auth-service-slo/auth-service-slo-dashboard"
 
       # ── Supporting alerts (not SLOs, but operationally important) ─
 
@@ -124,7 +124,6 @@ groups:
       - alert: RedisUnreachable
         expr: |
           auth_service_redis_up == 0
-          or absent(auth_service_redis_up)
         for: 2m
         labels:
           severity: warning

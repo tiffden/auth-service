@@ -7,7 +7,7 @@ These are two different questions an orchestrator asks your service:
   /health (liveness):
     "Is this process alive and not deadlocked?"
     If this fails, Kubernetes RESTARTS the container.
-    Keep it simple — if the Python process can respond, it's alive.
+    Keep it simple -- if the Python process can respond, it's alive.
 
   /ready (readiness):
     "Can this instance handle traffic right now?"
@@ -20,7 +20,7 @@ These are two different questions an orchestrator asks your service:
   WHY separate endpoints:
     A service might be alive but temporarily unable to serve requests.
     Restarting it would be destructive (kills in-flight requests, loses
-    warm caches).  Removing it from the load balancer is gentle — it
+    warm caches).  Removing it from the load balancer is gentle -- it
     can recover and rejoin when ready.
 
     Think of it like a restaurant:
@@ -51,34 +51,11 @@ from app.db.redis import redis_pool
 router = APIRouter(tags=["health"])
 
 
-def _sum_counter(metric_name: str, label_filter: dict | None = None) -> float:
-    """Sum all sample values for a counter across all label combinations.
-
-    Prometheus counters are labeled (e.g., by method, endpoint, status_code).
-    To compute "total requests across ALL endpoints", we need to sum across
-    all label combinations that match the filter.
-
-    Example: _sum_counter("http_requests_total", {"status_code": "200"})
-    sums all 200-status requests regardless of method or endpoint.
-    """
-    total = 0.0
-    for metric in REGISTRY.collect():
-        for sample in metric.samples:
-            if sample.name != metric_name:
-                continue
-            if label_filter and not all(
-                sample.labels.get(k) == v for k, v in label_filter.items()
-            ):
-                continue
-            total += sample.value
-    return total
-
-
 @router.get("/health")
 async def health() -> dict:
     """Liveness probe + dependency status + SLO compliance.
 
-    Returns 200 even when degraded — the STATUS field indicates the
+    Returns 200 even when degraded -- the STATUS field indicates the
     actual health.  A 200 with status=degraded means "alive but impaired."
     Returning 503 here would cause Kubernetes to restart the container,
     which is too aggressive for a partial outage.
@@ -108,7 +85,7 @@ async def health() -> dict:
     #
     #   2. Prometheus computes true percentiles (p95, p99) from histogram
     #      buckets using histogram_quantile().  We can't do that from
-    #      the Python client — we only have sum and count, so we
+    #      the Python client -- we only have sum and count, so we
     #      approximate (see latency section below).
     #
     #   3. SLO evaluation windows (30 days) require persistent time-series
@@ -118,12 +95,23 @@ async def health() -> dict:
     # In production, you'd query Prometheus via its HTTP API or use a
     # dedicated SLO tool (Sloth, Google SLO Generator, Nobl9).
 
-    # Availability: count all requests vs 5xx errors
-    total_all = _sum_counter("http_requests_total")
-    total_5xx = sum(
-        _sum_counter("http_requests_total", {"status_code": str(code)})
-        for code in range(500, 512)
-    )
+    # Single-pass aggregation keeps /health lightweight under frequent probes.
+    total_all = 0.0
+    total_5xx = 0.0
+    duration_sum = 0.0
+    duration_count = 0.0
+    for metric in REGISTRY.collect():
+        for sample in metric.samples:
+            if sample.name == "http_requests_total":
+                total_all += sample.value
+                status_code = sample.labels.get("status_code", "")
+                if status_code.startswith("5"):
+                    total_5xx += sample.value
+            elif sample.name == "http_request_duration_seconds_sum":
+                duration_sum += sample.value
+            elif sample.name == "http_request_duration_seconds_count":
+                duration_count += sample.value
+
     availability_status = evaluate_availability(int(total_all), int(total_5xx))
 
     # Latency: approximate p95 from histogram sum/count.
@@ -136,15 +124,6 @@ async def health() -> dict:
     # to interpolate p95, but that adds complexity.  In production,
     # Prometheus does this natively with:
     #   histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
-    duration_sum = 0.0
-    duration_count = 0.0
-    for metric in REGISTRY.collect():
-        for sample in metric.samples:
-            if sample.name == "http_request_duration_seconds_sum":
-                duration_sum += sample.value
-            elif sample.name == "http_request_duration_seconds_count":
-                duration_count += sample.value
-
     if duration_count > 0:
         avg_ms = (duration_sum / duration_count) * 1000
         p95_estimate_ms = avg_ms * 2.0
@@ -152,7 +131,7 @@ async def health() -> dict:
         p95_estimate_ms = 0.0
     latency_status = evaluate_latency(p95_estimate_ms)
 
-    # Queue processing: the API process doesn't run tasks — the worker
+    # Queue processing: the API process doesn't run tasks -- the worker
     # does.  We show defaults here.  In production, Prometheus would
     # aggregate worker metrics alongside API metrics.
     queue_status = evaluate_queue_processing(total_tasks=0, slow_tasks=0)
@@ -174,21 +153,14 @@ async def health() -> dict:
 
 @router.get("/ready")
 async def ready() -> Response:
-    """Readiness probe — can this instance handle traffic?
+    """Readiness probe -- can this instance accept traffic now?
 
-    Returns 200 if all critical dependencies are reachable.
-    Returns 503 if any critical dependency is down.
-
-    The load balancer uses this to decide whether to route traffic here.
-    Unlike /health, a 503 here does NOT trigger a restart — it just
-    removes this instance from the rotation until it recovers.
+    This educational service has no mandatory external dependency for basic
+    operation. Redis is optional because in-memory fallbacks exist, so
+    readiness currently returns HTTP 200 as long as the process can respond.
     """
     # Redis: optional (in-memory fallback exists), so not critical
-    # for readiness.  If we had a database dependency, that would be
-    # critical.  For now, readiness always passes — the service can
-    # function without Redis via in-memory fallbacks.
-
-    # If Redis is configured but unreachable, we could consider this
-    # "not ready" in a strict deployment.  For this educational project,
-    # we keep it simple: if the process can respond, it's ready.
+    # for readiness. If we add a mandatory dependency (for example, a
+    # primary database), this endpoint should return 503 when that
+    # dependency is unavailable.
     return Response(status_code=200)

@@ -52,32 +52,27 @@ class MetricsMiddleware(BaseHTTPMiddleware):
 
         ACTIVE_REQUESTS.inc()
         start = time.monotonic()
+        status_code: str | None = None
 
         try:
             response = await call_next(request)
+            status_code = str(response.status_code)
         except Exception:
             # If the handler raises an unhandled exception, Starlette
             # returns a 500.  We still want to record that.
-            REQUEST_COUNT.labels(
-                method=request.method,
-                endpoint=request.url.path,
-                status_code="500",
-            ).inc()
+            status_code = "500"
             raise
         finally:
             duration = time.monotonic() - start
             ACTIVE_REQUESTS.dec()
-
-        # Record the successful (or handled-error) response
-        REQUEST_COUNT.labels(
-            method=request.method,
-            endpoint=request.url.path,
-            status_code=str(response.status_code),
-        ).inc()
-
-        REQUEST_DURATION.labels(
-            method=request.method,
-            endpoint=request.url.path,
-        ).observe(duration)
+            REQUEST_COUNT.labels(
+                method=request.method,
+                endpoint=request.url.path,
+                status_code=status_code if status_code is not None else "500",
+            ).inc()
+            REQUEST_DURATION.labels(
+                method=request.method,
+                endpoint=request.url.path,
+            ).observe(duration)
 
         return response

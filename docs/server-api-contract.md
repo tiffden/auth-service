@@ -4,7 +4,8 @@ As of date: **February 16, 2026**
 
 Base URL: `http://localhost:8000` (dev)
 
-All endpoints accept and return `Content-Type: application/json`.
+All JSON API endpoints accept and return `Content-Type: application/json`.
+The `/metrics` endpoint is an exception and returns Prometheus text exposition format (`Content-Type: text/plain; version=0.0.4`).
 For browser clients, use `credentials: "include"` when cookies are involved.
 
 ---
@@ -119,7 +120,27 @@ No auth required. Returns server health status.
 
 ```json
 {
-  "status": "ok"
+  "status": "ok",
+  "checks": {
+    "redis": "not_configured"
+  },
+  "slos": {
+    "availability": {
+      "current": 100.0,
+      "target": 99.5,
+      "healthy": true
+    },
+    "latency_p95": {
+      "current": 100.0,
+      "target": 95.0,
+      "healthy": true
+    },
+    "queue_processing": {
+      "current": 100.0,
+      "target": 98.0,
+      "healthy": true
+    }
+  }
 }
 ```
 
