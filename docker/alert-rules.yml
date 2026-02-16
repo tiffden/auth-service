@@ -1,0 +1,157 @@
+# Prometheus alerting rules for auth-service.
+#
+# HOW ALERT RULES WORK:
+# Prometheus evaluates these rules every `evaluation_interval` (15s in our
+# prometheus.yml).  When a rule's `expr` is true for longer than `for`,
+# the alert transitions through these states:
+#
+#   inactive → pending → firing
+#
+#   - inactive: condition is false (all good)
+#   - pending:  condition is true but hasn't lasted `for` duration yet
+#               (avoids alerting on brief spikes)
+#   - firing:   condition has been true for at least `for` duration
+#               → Prometheus sends to Alertmanager → Alertmanager routes
+#               to Slack/PagerDuty/email
+#
+# WHY `for` DURATIONS MATTER:
+# Without `for`, a single bad scrape (15s of data) triggers an alert.
+# Network hiccups, GC pauses, and cold starts all cause brief blips.
+# The `for` clause acts as a debounce — only sustained problems fire.
+#
+# LABELS AND ANNOTATIONS:
+# - labels: used for routing (severity: critical → PagerDuty, warning → Slack)
+# - annotations: human-readable context for the on-call engineer
+#
+# These rules match the three SLOs defined in app/core/slo.py and the
+# runbooks in docs/alert-runbooks.md.
+
+groups:
+  - name: auth-service-slo-alerts
+    rules:
+
+      # ── Availability SLO: 99.5% success rate ──────────────────────
+      #
+      # This rule computes the 5xx error rate over a 5-minute window.
+      # A 5-minute window smooths out isolated errors while still
+      # catching sustained failures quickly.
+      #
+      # WHY 0.5% (not 0.1% or 1%):
+      # 0.5% means 1 in 200 requests fails.  Tighter targets require
+      # more engineering investment (redundancy, retries, graceful
+      # degradation).  0.5% is achievable for a well-maintained service
+      # without heroic effort — a good starting point.
+      #
+      # The `> 0` guard in the denominator prevents division by zero
+      # when the service has no traffic (e.g., during maintenance).
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status_code=~"5.."}[5m]))
+            / sum(rate(http_requests_total[5m]))
+          ) > 0.005
+          and sum(rate(http_requests_total[5m])) > 0
+        for: 5m
+        labels:
+          severity: critical
+          slo: availability
+        annotations:
+          summary: "Error rate exceeds 0.5% SLO target"
+          description: >-
+            More than 0.5% of HTTP requests are returning 5xx status codes
+            over the last 5 minutes.  This is burning the error budget.
+            See runbook: docs/alert-runbooks.md#availability-slo-breach
+          dashboard: "http://localhost:3000/d/auth-slo/auth-service-slo-dashboard"
+
+      # ── Latency SLO: p95 < 500ms ─────────────────────────────────
+      #
+      # histogram_quantile() computes true percentiles from histogram
+      # buckets — much more accurate than the avg*2 approximation in
+      # our /health endpoint.  This is the correct way to compute p95
+      # in production.
+      #
+      # WHY p95 AND NOT p50 OR p99:
+      # - p50 (median) hides tail latency — 50% of users could be slow
+      # - p99 is noisy — a single outlier triggers it
+      # - p95 balances sensitivity with stability: "95% of users get
+      #   a response within this time"
+      #
+      # WHY 500ms:
+      # Auth endpoints are internal (no network to end-user), so 500ms
+      # is generous.  If auth takes 500ms, every downstream API call
+      # that requires authentication is delayed by at least that much.
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          slo: latency
+        annotations:
+          summary: "p95 latency exceeds 500ms SLO target"
+          description: >-
+            The 95th percentile response time has been above 500ms for
+            5 minutes.  At least 5% of requests are experiencing slow
+            responses.
+            See runbook: docs/alert-runbooks.md#latency-slo-breach
+          dashboard: "http://localhost:3000/d/auth-slo/auth-service-slo-dashboard"
+
+      # ── Supporting alerts (not SLOs, but operationally important) ─
+
+      # High rate of rate-limit rejections may indicate an attack or
+      # a misconfigured client hammering the API.
+      - alert: HighRateLimitRejections
+        expr: |
+          sum(rate(rate_limit_hits_total[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          slo: operational
+        annotations:
+          summary: "Sustained rate-limit rejections (>10/s for 5m)"
+          description: >-
+            More than 10 requests per second are being rejected by the
+            rate limiter.  Check if this is a legitimate traffic spike
+            or an abusive client.  Inspect by key_type label to
+            distinguish user vs IP-based limits.
+
+      # Redis down — the API falls back to in-memory implementations,
+      # but rate limits, caches, and token blacklists lose shared state
+      # across instances.  Not immediately catastrophic, but data
+      # consistency degrades.
+      - alert: RedisUnreachable
+        expr: |
+          auth_service_redis_up == 0
+          or absent(auth_service_redis_up)
+        for: 2m
+        labels:
+          severity: warning
+          slo: operational
+        annotations:
+          summary: "Redis is unreachable"
+          description: >-
+            The /health endpoint reports Redis as degraded or not
+            configured.  The API is still functional (in-memory fallback)
+            but shared state (rate limits, token blacklist) is not
+            consistent across instances.
+
+      # No traffic at all — either the service is down, the load
+      # balancer is misconfigured, or it's a genuine quiet period.
+      # Only fires during expected traffic hours (you'd refine this
+      # with time-of-day conditions in Alertmanager).
+      - alert: NoTraffic
+        expr: |
+          sum(rate(http_requests_total[5m])) == 0
+        for: 10m
+        labels:
+          severity: warning
+          slo: operational
+        annotations:
+          summary: "No HTTP traffic for 10 minutes"
+          description: >-
+            The API has received zero requests in the last 10 minutes.
+            This could indicate a load balancer misconfiguration, DNS
+            issue, or the service being unreachable.  Verify the service
+            is running and reachable.

@@ -39,6 +39,7 @@ import logging
 from collections.abc import Callable, Coroutine
 from typing import Any
 
+from app.core.metrics import QUEUE_DEPTH
 from app.services.task_queue import task_queue
 
 TaskHandler = Callable[[dict], Coroutine[Any, Any, None]]
@@ -126,6 +127,11 @@ async def run_worker() -> None:
     while True:
         for queue_name in queues:
             task = await task_queue.dequeue(queue_name, timeout=1)
+
+            # Update queue depth metric after each poll
+            depth = await task_queue.queue_length(queue_name)
+            QUEUE_DEPTH.labels(queue_name=queue_name).set(depth)
+
             if task is None:
                 continue
 

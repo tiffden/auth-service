@@ -17,6 +17,7 @@ def _getenv(name: str, default: str) -> str:
 class Settings:
     app_env: AppEnv
     log_level: LogLevel
+    log_json: bool
     port: int
     database_url: str | None
     redis_url: str | None
@@ -47,6 +48,9 @@ def load_settings() -> Settings:
             f"LOG_LEVEL must be debug|info|warning|error (got {log_level_raw!r})"
         )
 
+    log_json_raw = _getenv("LOG_JSON", "false").lower()
+    log_json = log_json_raw in ("true", "1", "yes")
+
     try:
         port = int(port_raw)
     except ValueError:
@@ -58,6 +62,7 @@ def load_settings() -> Settings:
     return Settings(  # type: ignore[arg-type]
         app_env=app_env_raw,
         log_level=log_level_raw,
+        log_json=log_json,
         port=port,
         database_url=database_url,
         redis_url=redis_url,

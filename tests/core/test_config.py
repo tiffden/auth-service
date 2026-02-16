@@ -86,6 +86,7 @@ def _make_settings(app_env: AppEnv = "dev") -> Settings:
     return Settings(  # type: ignore[arg-type]
         app_env=app_env,
         log_level="info",
+        log_json=False,
         port=8000,
         database_url=None,
         redis_url=None,

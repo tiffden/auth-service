@@ -91,6 +91,42 @@ services:
         condition: service_healthy
     command: python -m app.worker
 
+  # Prometheus — time-series database that scrapes /metrics from the API.
+  # WHY "scrape" (pull) instead of "push":
+  #   Push: each service must know where to send data (tight coupling).
+  #   Pull: Prometheus asks each service for data (loose coupling).
+  #   Adding a new service to monitor = one line in prometheus.yml.
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: auth-service-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+    depends_on:
+      api:
+        condition: service_started
+
+  # Grafana — visualization layer for Prometheus metrics.
+  # Grafana doesn't store data itself; it queries Prometheus and renders
+  # dashboards.  Think of it as "charts and graphs" for your metrics.
+  # Login: admin / admin (dev only — change in production!)
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: auth-service-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
   test:
     image: auth-service:test
     pull_policy: never

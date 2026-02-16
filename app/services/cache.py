@@ -84,7 +84,11 @@ class InMemoryCacheService:
         self._store: dict[str, str] = {}
 
     async def get(self, key: str) -> str | None:
-        return self._store.get(key)
+        from app.core.metrics import CACHE_OPERATIONS
+
+        value = self._store.get(key)
+        CACHE_OPERATIONS.labels(operation="hit" if value is not None else "miss").inc()
+        return value
 
     async def set(self, key: str, value: str, ttl_seconds: int) -> None:
         self._store[key] = value

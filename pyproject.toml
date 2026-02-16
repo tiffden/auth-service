@@ -26,6 +26,7 @@ dependencies = [
     "asyncpg>=0.29",
     "alembic>=1.13",
     "redis[hiredis]>=5.0",
+    "prometheus-client>=0.20",
 ]
 
 [project.optional-dependencies]

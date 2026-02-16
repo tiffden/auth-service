@@ -13,6 +13,7 @@ from app.api.credentials import router as credentials_router
 from app.api.health import router as health_router
 from app.api.login import router as login_router
 from app.api.logout import router as logout_router
+from app.api.metrics_endpoint import router as metrics_router
 from app.api.oauth import router as oauth_router
 from app.api.orgs import router as orgs_router
 from app.api.profile import router as profile_router
@@ -24,9 +25,11 @@ from app.core.config import SETTINGS
 from app.core.logging import setup_logging
 from app.db.engine import lifespan_db
 from app.db.redis import lifespan_redis
+from app.middleware.metrics import MetricsMiddleware
+from app.middleware.request_context import RequestContextMiddleware
 
 # Configure logging before anything else runs.
-setup_logging(SETTINGS.log_level)
+setup_logging(SETTINGS.log_level, json_format=SETTINGS.log_json)
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +61,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Middleware execution order: last-added runs first (outermost layer).
+# RequestContext (outermost) → Metrics → CORS → route handler
+# This ensures every request gets a request ID before metrics are recorded.
+app.add_middleware(MetricsMiddleware)
+app.add_middleware(RequestContextMiddleware)
+
+app.include_router(metrics_router)
 app.include_router(admin_router)
 app.include_router(courses_router)
 app.include_router(credentials_router)
