@@ -12,6 +12,7 @@ from app.api.courses import router as courses_router
 from app.api.credentials import router as credentials_router
 from app.api.health import router as health_router
 from app.api.login import router as login_router
+from app.api.logout import router as logout_router
 from app.api.oauth import router as oauth_router
 from app.api.orgs import router as orgs_router
 from app.api.profile import router as profile_router
@@ -22,6 +23,7 @@ from app.api.users import router as users_router
 from app.core.config import SETTINGS
 from app.core.logging import setup_logging
 from app.db.engine import lifespan_db
+from app.db.redis import lifespan_redis
 
 # Configure logging before anything else runs.
 setup_logging(SETTINGS.log_level)
@@ -31,8 +33,12 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    # Each backing service (DB, Redis) has its own startup/shutdown
+    # lifecycle.  Nesting ensures teardown in reverse order (LIFO)
+    # even if one fails — the same principle as nested try/finally.
     async with lifespan_db():
-        yield
+        async with lifespan_redis():
+            yield
 
 
 # only app setup + router registration
@@ -57,6 +63,7 @@ app.include_router(courses_router)
 app.include_router(credentials_router)
 app.include_router(health_router)
 app.include_router(login_router)
+app.include_router(logout_router)
 app.include_router(oauth_router)
 app.include_router(orgs_router)
 app.include_router(profile_router)

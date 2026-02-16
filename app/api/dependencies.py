@@ -10,18 +10,23 @@ from fastapi.security import OAuth2PasswordBearer
 from app.models.principal import Principal
 from app.repos.org_membership_repo import OrgMembershipRepo
 from app.services import token_service
+from app.services.token_blacklist import token_blacklist
 
 logger = logging.getLogger(__name__)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/oauth/token")
 
 
-def require_user(
+async def require_user(
     raw_token: Annotated[str, Depends(oauth2_scheme)],
 ) -> Principal:
     """Extract and validate the JWT bearer token. Returns a Principal.
 
     Used as a FastAPI dependency on any protected endpoint.
+
+    NOTE: This is async (not sync) because the blacklist check may
+    hit Redis over the network.  FastAPI handles async dependencies
+    natively — no changes needed in callers or downstream Depends().
     """
     try:
         claims = token_service.decode_access_token(raw_token)
@@ -39,6 +44,19 @@ def require_user(
             detail="Invalid token",
             headers={"WWW-Authenticate": "Bearer"},
         ) from None
+
+    # Check token blacklist AFTER signature verification.
+    # WHY this order: signature checks are CPU-only (no network).
+    # Invalid/forged tokens are rejected cheaply before we spend
+    # ~0.1ms on a Redis round-trip for the blacklist lookup.
+    jti = claims.get("jti")
+    if jti and await token_blacklist.is_revoked(jti):
+        logger.warning("Revoked token rejected jti=%s", jti)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     principal = Principal(
         user_id=claims["sub"],

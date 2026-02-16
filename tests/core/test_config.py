@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.core.config import Settings, load_settings
+from app.core.config import AppEnv, Settings, load_settings
 
 # ---- valid values ----
 
@@ -82,28 +82,38 @@ def test_load_settings_rejects_empty_log_level(
 # ---- Settings properties ----
 
 
+def _make_settings(app_env: AppEnv = "dev") -> Settings:
+    return Settings(  # type: ignore[arg-type]
+        app_env=app_env,
+        log_level="info",
+        port=8000,
+        database_url=None,
+        redis_url=None,
+    )
+
+
 def test_settings_is_dev() -> None:
-    s = Settings(app_env="dev", log_level="info", port=8000, database_url=None)  # type: ignore[arg-type]
+    s = _make_settings("dev")
     assert s.is_dev is True
     assert s.is_test is False
     assert s.is_prod is False
 
 
 def test_settings_is_test() -> None:
-    s = Settings(app_env="test", log_level="info", port=8000, database_url=None)  # type: ignore[arg-type]
+    s = _make_settings("test")
     assert s.is_dev is False
     assert s.is_test is True
     assert s.is_prod is False
 
 
 def test_settings_is_prod() -> None:
-    s = Settings(app_env="prod", log_level="info", port=8000, database_url=None)  # type: ignore[arg-type]
+    s = _make_settings("prod")
     assert s.is_dev is False
     assert s.is_test is False
     assert s.is_prod is True
 
 
 def test_settings_is_frozen() -> None:
-    s = Settings(app_env="dev", log_level="info", port=8000, database_url=None)  # type: ignore[arg-type]
+    s = _make_settings()
     with pytest.raises(AttributeError):
         s.app_env = "prod"  # type: ignore[misc]

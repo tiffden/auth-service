@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.api.dependencies import require_user
+from app.api.ratelimit import require_rate_limit
 from app.models.principal import Principal
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,11 @@ class ProfileOut(BaseModel):
     message: str
 
 
-@router.get("/resource/me", response_model=ProfileOut)
+@router.get(
+    "/resource/me",
+    response_model=ProfileOut,
+    dependencies=[Depends(require_rate_limit())],
+)
 def get_my_profile(
     principal: Annotated[Principal, Depends(require_user)],
 ) -> ProfileOut:

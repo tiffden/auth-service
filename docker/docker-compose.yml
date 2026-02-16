@@ -20,6 +20,26 @@ services:
       timeout: 3s
       retries: 5
 
+  # Redis — in-memory data store for rate limits, caches, token blacklist,
+  # and task queues.  Unlike Postgres (durable, relational), Redis is
+  # optimized for ephemeral, high-frequency data that every request touches.
+  redis:
+    image: redis:7-alpine
+    container_name: auth-service-redis
+    ports:
+      - "6379:6379"
+    # WHY a healthcheck: docker-compose depends_on only waits for the
+    # container to START, not for Redis to be READY.  The healthcheck
+    # lets us use `condition: service_healthy` so the API doesn't
+    # start before Redis can accept connections.
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - redisdata:/data
+
   api:
     image: auth-service:dev
     pull_policy: never
@@ -32,6 +52,7 @@ services:
       - ../.env
     environment:
       DATABASE_URL: postgresql+asyncpg://auth:auth@postgres:5432/auth_service
+      REDIS_URL: redis://redis:6379/0
     ports:
       - "8000:8000"
     volumes:
@@ -39,11 +60,36 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     command: >
       uvicorn app.main:app
       --host 0.0.0.0
       --port 8000
       --reload
+
+  # Background worker — same Docker image, different entrypoint.
+  # WHY a separate service: the worker runs an infinite loop that
+  # dequeues and processes tasks.  It shares Redis with the API but
+  # scales independently (you can run 1 API + 3 workers during exams).
+  worker:
+    image: auth-service:dev
+    pull_policy: never
+    container_name: auth-service-worker-dev
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: runtime
+    env_file:
+      - ../.env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ../:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: python -m app.worker
 
   test:
     image: auth-service:test
@@ -63,3 +109,4 @@ services:
 
 volumes:
   pgdata:
+  redisdata:
