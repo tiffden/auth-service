@@ -14,10 +14,14 @@ This service is designed under an explicit threat model assuming untrusted clien
 app/
   api/       # FastAPI route handlers
   core/      # config, logging, and security helpers
-  models/    # domain entities
-  repos/     # data access/repository layer
+  db/        # SQLAlchemy engine, session factory, table definitions
+  models/    # domain entities (frozen dataclasses)
+  repos/     # data access/repository layer (Protocol + implementations)
   services/  # business logic/use cases
   main.py    # app factory/wiring
+alembic/
+  versions/  # migration scripts
+  env.py     # migration environment config
 docker/
   Dockerfile
   docker-compose.yml
@@ -100,6 +104,46 @@ In **.env**, set: `APP_ENV=dev`
 
 - `APP_ENV`: `dev` | `test` | `prod` (default: `dev`)
 - `LOG_LEVEL`: `debug` | `info` | `warning` | `error` (default: `info`)
+- `DATABASE_URL`: PostgreSQL connection string (omit to use in-memory repos)
+
+### Start PostgreSQL (via Docker Compose)
+
+The app works without a database (in-memory repos), but to develop
+against Postgres:
+
+```bash
+docker compose -f docker/docker-compose.yml up -d postgres
+```
+
+Then add to your `.env`:
+
+```bash
+DATABASE_URL=postgresql+asyncpg://auth:auth@localhost:5432/auth_service
+```
+
+Run migrations to create the schema:
+
+```bash
+alembic upgrade head
+```
+
+To check Postgres is running:
+
+```bash
+docker compose -f docker/docker-compose.yml ps
+```
+
+To stop Postgres (data persists in the `pgdata` volume):
+
+```bash
+docker compose -f docker/docker-compose.yml stop postgres
+```
+
+To stop and remove the volume (fresh start):
+
+```bash
+docker compose -f docker/docker-compose.yml down -v
+```
 
 ### Start a Feature Branch
 
@@ -196,11 +240,7 @@ git push -u origin feature/short-description
 
 Open a pull request on GitHub for review before merging to `main`:
 
-```bash
-gh pr create --title "feat: Short description" --body "Summary of changes"
-```
-
-Or create the PR through the GitHub web UI. Once CI passes and the PR
+Create the PR through the GitHub web UI. Once CI passes and the PR
 is approved:
 
 1. Merge the PR on GitHub (prefer "Squash and merge" for a clean history)
@@ -210,7 +250,13 @@ is approved:
 ```bash
 git checkout main
 git pull origin main
-git branch -d feature/short-description
+```
+
+If continuing with a new feature, create your new branch
+
+```bash
+git checkout -b my-new-branch-name
+git push -u origin my-new-branch-name
 ```
 
 ## 2) Staging/Test Environment

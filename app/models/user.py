@@ -9,17 +9,21 @@ class User:
     id: UUID
     email: str
     password_hash: str
+    name: str = ""
     roles: tuple[str, ...] = ()  # immutable
     is_active: bool = True
 
     @staticmethod
-    def new(*, email: str, password_hash: str, roles: tuple[str, ...] = ()) -> User:
+    def new(
+        *, email: str, password_hash: str, name: str = "", roles: tuple[str, ...] = ()
+    ) -> User:
         # Keep creation centralized so later you can normalize email,
         # enforce invariants, etc.
         return User(
             id=uuid4(),
             email=email,
             password_hash=password_hash,
+            name=name,
             roles=roles,
             is_active=True,
         )

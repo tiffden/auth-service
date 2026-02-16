@@ -14,12 +14,14 @@ from __future__ import annotations
 import html
 import logging
 
-from fastapi import APIRouter, Form, Query
+from fastapi import APIRouter, Depends, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from app.api.ratelimit import require_rate_limit
 from app.models.user import User
 from app.repos.user_repo import InMemoryUserRepo
 from app.services import auth_service, token_service
+from app.services.rate_limiter import RateLimitConfig
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +120,14 @@ def login_page(
 # ========================== POST /login =====================================
 
 
-@router.post("/login", response_model=None)
+# WHY strict limits on login: Brute-force password attacks send thousands
+# of login attempts per minute.  10 attempts/min per IP makes brute force
+# impractical while allowing a real user to fat-finger their password a
+# few times.  (capacity=10, refill_rate=0.17 ≈ 1 token every 6 seconds)
+_login_limit = require_rate_limit(RateLimitConfig(capacity=10, refill_rate=0.17))
+
+
+@router.post("/login", response_model=None, dependencies=[Depends(_login_limit)])
 def login_submit(
     email: str = Form(...),
     password: str = Form(...),

@@ -8,16 +8,21 @@ from app.models.user import User
 
 
 class UserRepo(Protocol):
+    def get_by_id(self, user_id: UUID) -> User | None: ...
     def get_by_email(self, email: str) -> User | None: ...
     def add(self, user: User) -> None: ...
     def set_active(self, user_id: UUID, is_active: bool) -> None: ...
     def update_password_hash(self, user_id: UUID, password_hash: str) -> None: ...
+    def update_name(self, user_id: UUID, name: str) -> User | None: ...
 
 
 class InMemoryUserRepo:
     def __init__(self) -> None:
         self._by_email: dict[str, User] = {}
         self._by_id: dict[UUID, User] = {}
+
+    def get_by_id(self, user_id: UUID) -> User | None:
+        return self._by_id.get(user_id)
 
     def get_by_email(self, email: str) -> User | None:
         # (TODO: lowercase/strip here or upstream)
@@ -47,3 +52,13 @@ class InMemoryUserRepo:
         updated = replace(u, password_hash=password_hash)
         self._by_id[user_id] = updated
         self._by_email[updated.email] = updated
+
+    def update_name(self, user_id: UUID, name: str) -> User | None:
+        u = self._by_id.get(user_id)
+        if u is None:
+            return None
+
+        updated = replace(u, name=name)
+        self._by_id[user_id] = updated
+        self._by_email[updated.email] = updated
+        return updated

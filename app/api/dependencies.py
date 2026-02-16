@@ -1,26 +1,32 @@
-from __future__ import annotations
-
 import logging
+from dataclasses import replace
 from typing import Annotated
+from uuid import UUID
 
 import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 
 from app.models.principal import Principal
+from app.repos.org_membership_repo import OrgMembershipRepo
 from app.services import token_service
+from app.services.token_blacklist import token_blacklist
 
 logger = logging.getLogger(__name__)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/oauth/token")
 
 
-def require_user(
+async def require_user(
     raw_token: Annotated[str, Depends(oauth2_scheme)],
 ) -> Principal:
     """Extract and validate the JWT bearer token. Returns a Principal.
 
     Used as a FastAPI dependency on any protected endpoint.
+
+    NOTE: This is async (not sync) because the blacklist check may
+    hit Redis over the network.  FastAPI handles async dependencies
+    natively — no changes needed in callers or downstream Depends().
     """
     try:
         claims = token_service.decode_access_token(raw_token)
@@ -38,6 +44,19 @@ def require_user(
             detail="Invalid token",
             headers={"WWW-Authenticate": "Bearer"},
         ) from None
+
+    # Check token blacklist AFTER signature verification.
+    # WHY this order: signature checks are CPU-only (no network).
+    # Invalid/forged tokens are rejected cheaply before we spend
+    # ~0.1ms on a Redis round-trip for the blacklist lookup.
+    jti = claims.get("jti")
+    if jti and await token_blacklist.is_revoked(jti):
+        logger.warning("Revoked token rejected jti=%s", jti)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     principal = Principal(
         user_id=claims["sub"],
@@ -59,7 +78,7 @@ def require_role(role: str):
     """
 
     def _guard(
-        principal: Annotated[Principal, Depends(require_user)],
+        principal: Principal = Depends(require_user),  # noqa: B008
     ) -> Principal:
         if not principal.has_role(role):
             logger.warning(
@@ -83,7 +102,7 @@ def require_any_role(roles: set[str]):
     """
 
     def _guard(
-        principal: Annotated[Principal, Depends(require_user)],
+        principal: Principal = Depends(require_user),  # noqa: B008
     ) -> Principal:
         if not principal.has_any_role(roles):
             logger.warning(
@@ -118,3 +137,130 @@ def get_interactive_user(request: Request) -> str | None:
     except jwt.InvalidTokenError:
         logger.debug("Invalid session cookie")
         return None
+
+
+# ---------------------------------------------------------------------------
+# Org-scoped access guards
+#
+# These use `= Depends(...)` default syntax (not Annotated) because
+# Annotated with closure-captured callables doesn't resolve correctly
+# when `from __future__ import annotations` is active in importing modules.
+# ---------------------------------------------------------------------------
+
+
+def resolve_org_principal(membership_repo: OrgMembershipRepo):
+    """Dependency factory: resolve org context from URL path param.
+
+    Reads org_id from the path, looks up the user's membership,
+    and returns a new Principal enriched with org_id and org_role.
+    Raises 403 if the user is not a member of the org.
+    Platform admins bypass the membership check.
+
+    Usage::
+
+        _resolve = resolve_org_principal(membership_repo)
+
+        @router.get("/v1/orgs/{org_id}")
+        def get_org(principal: Principal = Depends(_resolve)):
+            ...
+    """
+
+    def _resolve(
+        org_id: UUID,
+        principal: Principal = Depends(require_user),  # noqa: B008
+    ) -> Principal:
+        if principal.is_platform_admin():
+            return replace(principal, org_id=org_id, org_role="admin")
+
+        try:
+            user_uuid = UUID(principal.user_id)
+        except ValueError:
+            logger.warning(
+                "Invalid token subject for org-scoped access: %s", principal.user_id
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token subject",
+            ) from None
+
+        membership = membership_repo.get(org_id, user_uuid)
+        if membership is None:
+            logger.warning(
+                "Access denied: user=%s not a member of org=%s",
+                principal.user_id,
+                org_id,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not a member of this organization",
+            )
+
+        return replace(principal, org_id=org_id, org_role=membership.org_role)
+
+    return _resolve
+
+
+def require_org_role(role: str, membership_repo: OrgMembershipRepo):
+    """Dependency factory: demand a specific org role.
+
+    Usage::
+
+        _require_admin = require_org_role("admin", membership_repo)
+
+        @router.post("/v1/orgs/{org_id}/members")
+        def add_member(principal: Principal = Depends(_require_admin)):
+            ...
+    """
+    _resolve = resolve_org_principal(membership_repo)
+
+    def _guard(
+        principal: Principal = Depends(_resolve),  # noqa: B008
+    ) -> Principal:
+        if principal.is_platform_admin():
+            return principal
+        if not principal.has_org_role(role):
+            logger.warning(
+                "Access denied: user=%s org_role=%s required=%s org=%s",
+                principal.user_id,
+                principal.org_role,
+                role,
+                principal.org_id,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient org permissions",
+            )
+        return principal
+
+    return _guard
+
+
+def require_any_org_role(roles: set[str], membership_repo: OrgMembershipRepo):
+    """Dependency factory: demand at least one of the given org roles.
+
+    Usage::
+
+        _require = require_any_org_role({"owner", "admin"}, membership_repo)
+    """
+    _resolve = resolve_org_principal(membership_repo)
+
+    def _guard(
+        principal: Principal = Depends(_resolve),  # noqa: B008
+    ) -> Principal:
+        if principal.is_platform_admin():
+            return principal
+        if not principal.has_any_org_role(roles):
+            logger.warning(
+                "Access denied: user=%s org_role=%s required_any=%s org=%s",
+                principal.user_id,
+                principal.org_role,
+                roles,
+                principal.org_id,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient org permissions",
+            )
+        return principal
+
+    return _guard

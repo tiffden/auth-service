@@ -88,11 +88,25 @@ Icon?
 .Trashes
 
 # =========================
+# Database / Alembic
+# =========================
+*.sqlite3
+*.db
+
+# =========================
+# Cryptographic keys
+# =========================
+*.pem
+*.key
+!*.key.example
+
+# =========================
 # Docker (optional)
 # =========================
 # If you use docker compose locally, you usually commit compose files.
 # But ignore local override files:
 docker-compose.override.yml
+docker-compose.override.yaml
 
 # =========================
 # Misc
