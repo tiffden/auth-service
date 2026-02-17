@@ -18,6 +18,7 @@ from app.api.oauth import router as oauth_router
 from app.api.orgs import router as orgs_router
 from app.api.profile import router as profile_router
 from app.api.progress import router as progress_router
+from app.api.refresh import router as refresh_router
 from app.api.register import router as register_router
 from app.api.resource import router as resource_router
 from app.api.users import router as users_router
@@ -78,6 +79,7 @@ app.include_router(oauth_router)
 app.include_router(orgs_router)
 app.include_router(profile_router)
 app.include_router(progress_router)
+app.include_router(refresh_router)
 app.include_router(register_router)
 app.include_router(resource_router)
 app.include_router(users_router)
