@@ -6,7 +6,7 @@ This document covers the two primary deployment strategies for auth-service and 
 
 ### How it works
 
-```
+```html
                     ┌──────────────┐
          100%       │  Blue (v1)   │  ← currently serving all traffic
 Traffic ──────────► │  3 replicas  │
@@ -28,7 +28,7 @@ Traffic ──────────► │  3 replicas  │
 ### Pros and cons
 
 | Aspect | Blue/Green |
-|--------|-----------|
+| -------- | ----------- |
 | Rollback speed | Instant (flip the LB back) |
 | Resource cost | 2x infrastructure during deployment |
 | Risk | All-or-nothing — if v2 has a subtle bug, 100% of users see it |
@@ -37,9 +37,9 @@ Traffic ──────────► │  3 replicas  │
 
 ## Canary Deployment
 
-### How it works
+### How deployment works
 
-```
+```html
 Phase 1:   95% → Blue (v1)     5% → Green (v2)
 Phase 2:   75% → Blue (v1)    25% → Green (v2)
 Phase 3:   50% → Blue (v1)    50% → Green (v2)
@@ -58,20 +58,21 @@ Phase 4:    0% → Blue (v1)   100% → Green (v2)  ✓ done
 
 The key advantage of canary is using SLOs as promotion gates:
 
-```
+```html
 Deploy 5% → Wait 10min → Check SLOs → If healthy → Promote to 25%
                                       → If breached → Rollback to 0%
 ```
 
 This is the recommended strategy for auth-service because:
-- Auth failures are high-impact (users can't log in)
+
+- Auth failures are high-impact: users can't log in
 - SLOs are already defined and measured (availability, latency)
 - Gradual rollout limits blast radius
 
-### Pros and cons
+### Pros and cons of canary
 
 | Aspect | Canary |
-|--------|--------|
+| -------- | -------- |
 | Rollback speed | Fast (route back to v1) |
 | Resource cost | v1 + small v2 footprint |
 | Risk | Limited — only 5% of users see a bad deploy initially |
@@ -83,6 +84,7 @@ This is the recommended strategy for auth-service because:
 ### When to rollback
 
 Trigger a rollback when ANY of these conditions are met:
+
 1. **Availability SLO breach**: Error rate exceeds 0.5% (check Grafana "Error Rate" panel)
 2. **Latency SLO breach**: p95 latency exceeds 500ms (check "Latency Percentiles" panel)
 3. **Health check failures**: `/health` returns degraded or `/ready` returns 503
@@ -91,6 +93,7 @@ Trigger a rollback when ANY of these conditions are met:
 ### Rollback steps
 
 #### Blue/Green rollback
+
 ```bash
 # 1. Flip load balancer back to Blue (v1)
 #    In AWS ALB: change target group
@@ -109,6 +112,7 @@ curl -s http://localhost:8000/health | jq .status
 ```
 
 #### Canary rollback
+
 ```bash
 # 1. Route 100% traffic back to v1 (set canary weight to 0%)
 # 2. Verify SLOs recover within 5 minutes
