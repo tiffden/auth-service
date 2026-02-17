@@ -65,14 +65,26 @@ class MetricsMiddleware(BaseHTTPMiddleware):
         finally:
             duration = time.monotonic() - start
             ACTIVE_REQUESTS.dec()
+            # Use the route template (if available) as the endpoint label to avoid
+            # unbounded/high-cardinality metrics from raw paths with IDs, etc.
+            endpoint_label = request.url.path
+            route = request.scope.get("route")
+            if route is not None:
+                # Starlette/FastAPI expose the route template via `path` or
+                # `path_format` depending on version.
+                template = getattr(route, "path", None) or getattr(
+                    route, "path_format", None
+                )
+                if template:
+                    endpoint_label = template
             REQUEST_COUNT.labels(
                 method=request.method,
-                endpoint=request.url.path,
+                endpoint=endpoint_label,
                 status_code=status_code if status_code is not None else "500",
             ).inc()
             REQUEST_DURATION.labels(
                 method=request.method,
-                endpoint=request.url.path,
+                endpoint=endpoint_label,
             ).observe(duration)
 
         return response
