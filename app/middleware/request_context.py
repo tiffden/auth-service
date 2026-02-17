@@ -96,32 +96,35 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         # Step 1: Get or generate request ID
         req_id = request.headers.get("x-request-id") or str(uuid.uuid4())
-        request_id_var.set(req_id)
+        token = request_id_var.set(req_id)
+        try:
+            # Step 2: Time the request
+            start = time.monotonic()
+            response = await call_next(request)
+            duration_ms = round((time.monotonic() - start) * 1000, 1)
 
-        # Step 2: Time the request
-        start = time.monotonic()
-        response = await call_next(request)
-        duration_ms = round((time.monotonic() - start) * 1000, 1)
+            # Step 3: Log a summary line with structured fields
+            # These extra fields are picked up by _JsonFormatter when LOG_JSON=true,
+            # and are visible in the text formatter as part of the message.
+            logger.info(
+                "%s %s → %d (%.1fms)",
+                request.method,
+                request.url.path,
+                response.status_code,
+                duration_ms,
+                extra={
+                    "request_id": req_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status_code": response.status_code,
+                    "duration_ms": duration_ms,
+                },
+            )
 
-        # Step 3: Log a summary line with structured fields
-        # These extra fields are picked up by _JsonFormatter when LOG_JSON=true,
-        # and are visible in the text formatter as part of the message.
-        logger.info(
-            "%s %s → %d (%.1fms)",
-            request.method,
-            request.url.path,
-            response.status_code,
-            duration_ms,
-            extra={
-                "request_id": req_id,
-                "method": request.method,
-                "path": request.url.path,
-                "status_code": response.status_code,
-                "duration_ms": duration_ms,
-            },
-        )
+            # Step 4: Set response header so clients can correlate
+            response.headers["X-Request-ID"] = req_id
 
-        # Step 4: Set response header so clients can correlate
-        response.headers["X-Request-ID"] = req_id
-
-        return response
+            return response
+        finally:
+            # Ensure the request ID does not leak beyond this request's context
+            request_id_var.reset(token)
