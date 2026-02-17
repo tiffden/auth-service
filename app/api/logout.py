@@ -16,6 +16,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response
 from fastapi.security import OAuth2PasswordBearer
+from pydantic import BaseModel
 
 from app.services import token_service
 from app.services.token_blacklist import token_blacklist
@@ -27,11 +28,19 @@ router = APIRouter(tags=["auth"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/oauth/token")
 
 
+class LogoutBody(BaseModel):
+    """Optional body — clients may include their refresh token for revocation."""
+
+    refreshToken: str | None = None
+
+
 @router.post("/auth/logout", status_code=204)
 async def logout(
     raw_token: Annotated[str, Depends(oauth2_scheme)],
+    body: LogoutBody | None = None,
 ) -> Response:
-    """Revoke the current token and clear the session cookie.
+    """Revoke the current token (and optional refresh token) and clear the
+    session cookie.
 
     The token's JTI is added to the blacklist with a TTL matching
     the token's remaining lifetime.  After this, any request using
@@ -43,14 +52,26 @@ async def logout(
         # Even if the token is invalid/expired, return 204.
         # Logout should be idempotent — "make this token not work"
         # is already true if it's invalid.
-        return Response(status_code=204)
+        claims = None
 
-    jti = claims.get("jti")
-    exp = claims.get("exp")
+    if claims:
+        jti = claims.get("jti")
+        exp = claims.get("exp")
+        if jti and exp:
+            await token_blacklist.revoke(jti, float(exp))
+            logger.info("Token revoked jti=%s", jti)
 
-    if jti and exp:
-        await token_blacklist.revoke(jti, float(exp))
-        logger.info("Token revoked jti=%s", jti)
+    # Also revoke the refresh token if the client included it.
+    if body and body.refreshToken:
+        try:
+            refresh_claims = token_service.decode_refresh_token(body.refreshToken)
+            r_jti = refresh_claims.get("jti")
+            r_exp = refresh_claims.get("exp")
+            if r_jti and r_exp:
+                await token_blacklist.revoke(r_jti, float(r_exp))
+                logger.info("Refresh token revoked on logout  jti=%s", r_jti)
+        except Exception:
+            pass  # Best effort — logout is idempotent
 
     response = Response(status_code=204)
     response.delete_cookie("session")

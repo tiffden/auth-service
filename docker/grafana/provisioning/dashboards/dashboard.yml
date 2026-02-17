@@ -1,0 +1,11 @@
+# Tell Grafana where to find dashboard JSON files.
+# On startup, Grafana loads all .json files from the path below
+# and creates the dashboards automatically.
+apiVersion: 1
+providers:
+  - name: "auth-service"
+    orgId: 1
+    folder: ""
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

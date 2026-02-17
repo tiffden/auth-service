@@ -92,6 +92,11 @@ def require_rate_limit(config: RateLimitConfig = _DEFAULT_CONFIG):
         }
 
         if not result.allowed:
+            from app.core.metrics import RATE_LIMIT_HITS
+
+            RATE_LIMIT_HITS.labels(
+                key_type="user" if key.startswith("user:") else "ip"
+            ).inc()
             logger.warning("Rate limit exceeded key=%s", key)
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,

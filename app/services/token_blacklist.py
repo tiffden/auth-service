@@ -79,13 +79,18 @@ class InMemoryTokenBlacklist:
         self._revoked[jti] = expires_at
 
     async def is_revoked(self, jti: str) -> bool:
+        from app.core.metrics import TOKEN_BLACKLIST_CHECKS
+
         exp = self._revoked.get(jti)
         if exp is None:
+            TOKEN_BLACKLIST_CHECKS.labels(result="valid").inc()
             return False
         # Mimic Redis TTL behavior: auto-clean expired entries
         if exp < time.time():
             del self._revoked[jti]
+            TOKEN_BLACKLIST_CHECKS.labels(result="valid").inc()
             return False
+        TOKEN_BLACKLIST_CHECKS.labels(result="revoked").inc()
         return True
 
 

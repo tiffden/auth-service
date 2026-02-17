@@ -108,3 +108,57 @@ def decode_session_token(token: str) -> dict:
         audience=SESSION_AUDIENCE,
         options={"require": ["sub", "exp", "iat", "jti"]},
     )
+
+
+# ---------------------------------------------------------------------------
+# Refresh tokens
+# ---------------------------------------------------------------------------
+# Refresh tokens use the same ES256 key pair but a DIFFERENT audience claim.
+# This prevents a refresh JWT from being accepted as an access token or
+# session token, even though all three share the same signing key.
+#
+# WHY JWT (not opaque)?  This codebase is stateless-first — the blacklist
+# handles revocation.  A JWT refresh token avoids a new storage layer
+# while still being cryptographically verifiable.
+#
+# WHY no roles/scope in refresh tokens?  When the client refreshes, the
+# endpoint looks up the user's *current* roles from the repo.  This means
+# role changes (e.g. admin promotion or revocation) take effect on the
+# next refresh (~15 min worst case), not after the 7-day refresh TTL.
+
+REFRESH_AUDIENCE = "auth-service-refresh"
+REFRESH_TOKEN_TTL_DAYS = 7
+
+
+def create_refresh_token(*, sub: str) -> str:
+    """Build and sign a refresh token JWT.
+
+    Contains only identity (sub) — no roles or scope.  The refresh
+    endpoint will look up current roles from the user repo when issuing
+    a new access token.
+    """
+    now = datetime.now(UTC)
+    payload = {
+        "sub": sub,
+        "iss": ISSUER,
+        "aud": REFRESH_AUDIENCE,
+        "exp": now + timedelta(days=REFRESH_TOKEN_TTL_DAYS),
+        "iat": now,
+        "jti": str(uuid.uuid4()),
+    }
+    return jwt.encode(payload, _private_key, algorithm=ALGORITHM)
+
+
+def decode_refresh_token(token: str) -> dict:
+    """Verify a refresh token JWT. Pins audience to REFRESH_AUDIENCE.
+
+    Raises jwt.ExpiredSignatureError, jwt.InvalidTokenError on failure.
+    """
+    return jwt.decode(
+        token,
+        _public_key,
+        algorithms=[ALGORITHM],
+        issuer=ISSUER,
+        audience=REFRESH_AUDIENCE,
+        options={"require": ["sub", "exp", "iat", "jti"]},
+    )

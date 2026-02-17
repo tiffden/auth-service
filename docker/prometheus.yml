@@ -1,0 +1,42 @@
+# Prometheus scrape configuration for auth-service.
+#
+# HOW SCRAPING WORKS:
+# Every `scrape_interval` seconds, Prometheus sends a GET request to
+# each target's /metrics endpoint.  It parses the response and stores
+# the metric values as time-series data points.
+#
+# scrape_interval: 15s means Prometheus collects data every 15 seconds.
+# In production, 15-30s is standard.  Lower intervals = more data points
+# = more storage and more load on your app.  Higher intervals = less
+# granularity (you might miss a brief spike).
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s    # How often Prometheus evaluates alert rules
+
+# ALERT RULES:
+# rule_files tells Prometheus where to find alerting rules.  Prometheus
+# loads these at startup and reloads them when the file changes (if you
+# send SIGHUP or use the /-/reload endpoint).
+#
+# The rules here match the SLOs defined in app/core/slo.py and the
+# runbooks in docs/alert-runbooks.md.  In production, you'd also
+# configure an `alerting:` section pointing to Alertmanager, which
+# routes fired alerts to Slack, PagerDuty, email, etc.
+#
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ["alertmanager:9093"]
+rule_files:
+  - /etc/prometheus/alert-rules.yml
+
+scrape_configs:
+  # Our auth-service API.
+  # Prometheus discovers targets via static_configs (manual) or
+  # service_discovery (automatic, used in Kubernetes).
+  # For Docker Compose, static is fine.
+  - job_name: "auth-service-api"
+    static_configs:
+      - targets: ["api:8000"]
+    metrics_path: /metrics

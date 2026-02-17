@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://json.schemastore.org/base.json
+# Auto-provision Prometheus as Grafana's default data source.
+# Grafana reads this file on startup and configures the connection
+# automatically — no manual setup needed in the UI.
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: PBFA97CFB590B2093
+    type: prometheus
+    access: proxy          # Grafana server proxies requests to Prometheus
+    url: http://prometheus:9090
+    isDefault: true
