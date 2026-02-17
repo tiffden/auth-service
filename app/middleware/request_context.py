@@ -74,8 +74,10 @@ class _RequestContextFilter(logging.Filter):
 
 
 # Install the filter on the root logger so ALL loggers inherit it.
-# This is done at import time — safe because filters are additive.
-logging.getLogger().addFilter(_RequestContextFilter())
+# Guard against duplicate installation across module reloads.
+root_logger = logging.getLogger()
+if not any(isinstance(f, _RequestContextFilter) for f in root_logger.filters):
+    root_logger.addFilter(_RequestContextFilter())
 
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
