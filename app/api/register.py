@@ -43,6 +43,7 @@ class UserOut(BaseModel):
 
 class AuthResponse(BaseModel):
     accessToken: str
+    refreshToken: str
     user: UserOut
 
 
@@ -66,9 +67,11 @@ def login(payload: LoginIn) -> AuthResponse:
         sub=str(user.id),
         roles=list(user.roles) or ["user"],
     )
+    refresh_token = token_service.create_refresh_token(sub=str(user.id))
 
     return AuthResponse(
         accessToken=access_token,
+        refreshToken=refresh_token,
         user=UserOut(id=str(user.id), email=user.email, name=user.name),
     )
 
@@ -125,13 +128,15 @@ def register(payload: RegisterIn) -> AuthResponse:
 
     logger.info("User registered  user_id=%s email=%s", user.id, email)
 
-    # Issue access token
+    # Issue access + refresh tokens
     access_token = token_service.create_access_token(
         sub=str(user.id),
         roles=list(user.roles) or ["user"],
     )
+    refresh_token = token_service.create_refresh_token(sub=str(user.id))
 
     return AuthResponse(
         accessToken=access_token,
+        refreshToken=refresh_token,
         user=UserOut(id=str(user.id), email=user.email, name=user.name),
     )
